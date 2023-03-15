@@ -1,4 +1,22 @@
 # Implement the six functions below
+
+def output_prob(in_train_filename, naive_output_probs_filename, delta):
+    trainData = []
+    curr = []
+    with open(in_train_filename, "r") as fin:
+        for l in fin:
+            if l == "\n":
+                trainData.append(curr)
+                curr = []
+            else:
+                wordtag = l.split("\t")
+                wordtag[1] = wordtag[1][:-1]
+                curr.append(tuple(wordtag))
+    return trainData
+
+
+
+
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
     pass
 
@@ -43,6 +61,9 @@ def run():
     ddir = '' #your working dir
 
     in_train_filename = f'{ddir}/twitter_train.txt'
+
+    #added for q2a
+    output_prob(in_train_filename, naive_output_probs_filename, 0.1)
 
     naive_output_probs_filename = f'{ddir}/naive_output_probs.txt'
 
