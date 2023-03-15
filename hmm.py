@@ -1,5 +1,31 @@
 # Implement the six functions below
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
+    file = open('twitter_train.txt')
+    #f = open(in_output_probs_filename, "w")
+    pair = file.readline()
+    token_tag_counter_dict = {}
+    tag_counter_dict = {}
+    while pair:
+        newpair = pair.split()
+        token = newpair[0]
+        tag = newpair[1]
+        if (token, tag) in token_tag_counter_dict.keys():
+            count = token_tag_counter_dict[(token, tag)]
+            token_tag_counter_dict.update({(token, tag): count + 1})
+        else:
+            token_tag_counter_dict[(token, tag)] = 1
+        if tag in tag_counter_dict.keys():
+            count = tag_counter_dict[tag]
+            tag_counter_dict.update({tag: count + 1})
+        else:
+            tag_counter_dict[tag] = 1
+        pair = file.readline()
+        if pair == '\n':
+            pair = file.readline()
+    print("tag_counter_dict: ")
+    print(tag_counter_dict)
+    print("token_tag_counter_dict: ")
+    print(token_tag_counter_dict)
     pass
 
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
@@ -53,6 +79,7 @@ def run():
     correct, total, acc = evaluate(naive_prediction_filename, in_ans_filename)
     print(f'Naive prediction accuracy:     {correct}/{total} = {acc}')
 
+    '''
     naive_prediction_filename2 = f'{ddir}/naive_predictions2.txt'
     naive_predict2(naive_output_probs_filename, in_train_filename, in_test_filename, naive_prediction_filename2)
     correct, total, acc = evaluate(naive_prediction_filename2, in_ans_filename)
@@ -76,6 +103,7 @@ def run():
                      viterbi_predictions_filename2)
     correct, total, acc = evaluate(viterbi_predictions_filename2, in_ans_filename)
     print(f'Viterbi2 prediction accuracy:  {correct}/{total} = {acc}')
+    '''
     
 
 
