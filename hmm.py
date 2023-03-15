@@ -1,4 +1,5 @@
 file = open("naive_output_probs.txt", "x")
+file = open("naive_predictions.txt", "x")
 # Implement the six functions below
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
     # naive_predict(naive_output_probs.txt, twitter_dev_no_tag.txt, naive_predictions.txt)
@@ -28,31 +29,40 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
         pair = file.readline()
         if pair == '\n':
             pair = file.readline()
-    
+    file.close()
     prob_file = open(in_output_probs_filename, "a")
     items = token_tag_counter_dict.items()
     lst = []
+    final_dict = {}
     for (key,value) in items:
         max_pair = max(token_tag_counter_dict[key].values())
         tag = max_pair[1]
         prob = max_pair[0]/tag_counter_dict[tag][0]
         if f'{key}\t{tag}\t{prob}\n' not in lst:
             lst.append(f'{key}\t{tag}\t{prob}\n')
+            final_dict[key] = tag
     for elem in lst:
         prob_file.write(elem)
     prob_file.close()
 
-    '''
     input_file = open(in_test_filename)
     num_unique_words = len(lst)
     prob_unknown_word = 0.01 / (0.01 * num_unique_words + 1)
-    input = input_file.readline()
-
-
+    input = input_file.readline().strip()
     prediction_file = open(out_prediction_filename, "a")
-    '''
-    
-    #print(token_tag_counter_dict)
+
+    print(input)
+    while input:
+        if input in final_dict.keys():
+            final_tag = final_dict.get(input)
+        else: 
+            final_tag = '@'
+        prediction_file.write(f'{final_tag}\n')
+        input = input_file.readline().strip()
+        if (input == "" or input == "\n"):
+            input = input_file.readline()
+    prediction_file.close()
+    input_file.close()
     pass
 
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
