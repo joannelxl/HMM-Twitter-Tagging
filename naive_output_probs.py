@@ -16,12 +16,12 @@ def count_tags(file):
                 temp_list = []
                 for word in line.split():
                     temp_list.append(word)
-            tag = temp_list[1]
+                tag = temp_list[1]
 
-            if tag in freqs:
-                freqs[tag] += 1
-            else:
-                freqs[tag] = 1
+                if tag in freqs:
+                    freqs[tag] += 1
+                else:
+                    freqs[tag] = 1
     return freqs
 
 #returns a dictionary of dictionaries where count the number of token w associated with j 
@@ -35,19 +35,19 @@ def count_tokens_tags(file):
                 temp_list = []
                 for word in line.split():
                     temp_list.append(word)
-            token = temp_list[0]
-            tag = temp_list[1]
+                token = temp_list[0]
+                tag = temp_list[1]
 
-            if tag in freqs:
-                tag_tokens = freqs[tag]
-                if token in tag_tokens:
-                    tag_tokens[token] += 1
+                if tag in freqs:
+                    tag_tokens = freqs[tag]
+                    if token in tag_tokens:
+                        tag_tokens[token] += 1
+                    else:
+                        tag_tokens[token] = 1
                 else:
+                    freqs[tag] = {}
+                    tag_tokens = freqs[tag]
                     tag_tokens[token] = 1
-            else:
-                freqs[tag] = {}
-                tag_tokens = freqs[tag]
-                tag_tokens[token] = 1
         
     return freqs
 
