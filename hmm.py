@@ -1,5 +1,7 @@
+file = open("naive_output_probs.txt", "x")
 # Implement the six functions below
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
+    # naive_predict(naive_output_probs.txt, twitter_dev_no_tag.txt, naive_predictions.txt)
     file = open('twitter_train.txt')
     #f = open(in_output_probs_filename, "w")
     pair = file.readline()
@@ -9,23 +11,48 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
         newpair = pair.split()
         token = newpair[0]
         tag = newpair[1]
-        if (token, tag) in token_tag_counter_dict.keys():
-            count = token_tag_counter_dict[(token, tag)]
-            token_tag_counter_dict.update({(token, tag): count + 1})
+        if token in token_tag_counter_dict.keys():
+            if tag in token_tag_counter_dict[token].keys():
+                count = token_tag_counter_dict[token][tag][0]
+                token_tag_counter_dict[token][tag] = (count + 1, tag)
+            else:
+                token_tag_counter_dict[token][tag] = (1, tag)
         else:
-            token_tag_counter_dict[(token, tag)] = 1
+            token_tag_counter_dict[token] = {}
+            token_tag_counter_dict[token][tag] = (1, tag)
         if tag in tag_counter_dict.keys():
-            count = tag_counter_dict[tag]
-            tag_counter_dict.update({tag: count + 1})
+            count = tag_counter_dict[tag][0]
+            tag_counter_dict[tag] = (count + 1, tag)
         else:
-            tag_counter_dict[tag] = 1
+            tag_counter_dict[tag] = (1, tag)
         pair = file.readline()
         if pair == '\n':
             pair = file.readline()
-    print("tag_counter_dict: ")
-    print(tag_counter_dict)
-    print("token_tag_counter_dict: ")
-    print(token_tag_counter_dict)
+    
+    prob_file = open(in_output_probs_filename, "a")
+    items = token_tag_counter_dict.items()
+    lst = []
+    for (key,value) in items:
+        max_pair = max(token_tag_counter_dict[key].values())
+        tag = max_pair[1]
+        prob = max_pair[0]/tag_counter_dict[tag][0]
+        if f'{key}\t{tag}\t{prob}\n' not in lst:
+            lst.append(f'{key}\t{tag}\t{prob}\n')
+    for elem in lst:
+        prob_file.write(elem)
+    prob_file.close()
+
+    '''
+    input_file = open(in_test_filename)
+    num_unique_words = len(lst)
+    prob_unknown_word = 0.01 / (0.01 * num_unique_words + 1)
+    input = input_file.readline()
+
+
+    prediction_file = open(out_prediction_filename, "a")
+    '''
+    
+    #print(token_tag_counter_dict)
     pass
 
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
@@ -68,13 +95,13 @@ def run():
 
     ddir = '' #your working dir
 
-    in_train_filename = f'{ddir}/twitter_train.txt'
+    in_train_filename = f'{ddir}twitter_train.txt'
 
-    naive_output_probs_filename = f'{ddir}/naive_output_probs.txt'
+    naive_output_probs_filename = f'{ddir}naive_output_probs.txt'
 
-    in_test_filename = f'{ddir}/twitter_dev_no_tag.txt'
-    in_ans_filename  = f'{ddir}/twitter_dev_ans.txt'
-    naive_prediction_filename = f'{ddir}/naive_predictions.txt'
+    in_test_filename = f'{ddir}twitter_dev_no_tag.txt'
+    in_ans_filename  = f'{ddir}twitter_dev_ans.txt'
+    naive_prediction_filename = f'{ddir}naive_predictions.txt'
     naive_predict(naive_output_probs_filename, in_test_filename, naive_prediction_filename)
     correct, total, acc = evaluate(naive_prediction_filename, in_ans_filename)
     print(f'Naive prediction accuracy:     {correct}/{total} = {acc}')
