@@ -1,6 +1,27 @@
 # Implement the six functions below
+import json
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
-    pass
+    naive_prediction = []
+    with open(in_output_probs_filename) as probs_file:
+        data = probs_file.read()
+        naive_output_dict = json.loads(data)
+        with open(in_test_filename) as test_file:
+            count = 0
+            for word in test_file:
+                token = word.strip()
+                if (token):
+                    if token in naive_output_dict:
+                        token_tags = naive_output_dict[token]
+                        naive_prediction.append(max(token_tags, key=token_tags.get))       
+                    else:
+                        unseen_token = naive_output_dict["unseen token"]
+                        naive_prediction.append(max(unseen_token, key=unseen_token.get))
+
+    with open(out_prediction_filename, "w") as f:
+        for prediction in naive_prediction:
+            f.write(prediction)
+            f.write('\n')
+                        
 
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
     pass
@@ -42,17 +63,18 @@ def run():
 
     ddir = '' #your working dir
 
-    in_train_filename = f'{ddir}/twitter_train.txt'
+    in_train_filename = f'{ddir}twitter_train.txt'
 
-    naive_output_probs_filename = f'{ddir}/naive_output_probs.txt'
+    naive_output_probs_filename = f'{ddir}naive_output_probs.txt'
 
-    in_test_filename = f'{ddir}/twitter_dev_no_tag.txt'
-    in_ans_filename  = f'{ddir}/twitter_dev_ans.txt'
-    naive_prediction_filename = f'{ddir}/naive_predictions.txt'
+    in_test_filename = f'{ddir}twitter_dev_no_tag.txt'
+    in_ans_filename  = f'{ddir}twitter_dev_ans.txt'
+    naive_prediction_filename = f'{ddir}naive_predictions.txt'
     naive_predict(naive_output_probs_filename, in_test_filename, naive_prediction_filename)
     correct, total, acc = evaluate(naive_prediction_filename, in_ans_filename)
     print(f'Naive prediction accuracy:     {correct}/{total} = {acc}')
 
+"""
     naive_prediction_filename2 = f'{ddir}/naive_predictions2.txt'
     naive_predict2(naive_output_probs_filename, in_train_filename, in_test_filename, naive_prediction_filename2)
     correct, total, acc = evaluate(naive_prediction_filename2, in_ans_filename)
@@ -75,7 +97,7 @@ def run():
     viterbi_predict2(in_tags_filename, trans_probs_filename2, output_probs_filename2, in_test_filename,
                      viterbi_predictions_filename2)
     correct, total, acc = evaluate(viterbi_predictions_filename2, in_ans_filename)
-    print(f'Viterbi2 prediction accuracy:  {correct}/{total} = {acc}')
+    print(f'Viterbi2 prediction accuracy:  {correct}/{total} = {acc}') """
     
 
 
