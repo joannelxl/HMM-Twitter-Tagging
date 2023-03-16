@@ -1,5 +1,5 @@
-file = open("naive_output_probs.txt", "x")
-file = open("naive_predictions.txt", "x")
+file = open("naive_output_probs.txt", "w")
+file = open("naive_predictions.txt", "w")
 # Implement the six functions below
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
     # naive_predict(naive_output_probs.txt, twitter_dev_no_tag.txt, naive_predictions.txt)
@@ -8,6 +8,8 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
     pair = file.readline()
     token_tag_counter_dict = {}
     tag_counter_dict = {}
+
+    # getting no of times a tag appeared, and no of times a token appeared (tgt w the associated tag)
     while pair:
         newpair = pair.split()
         token = newpair[0]
@@ -30,16 +32,24 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
         if pair == '\n':
             pair = file.readline()
     file.close()
+
+
     prob_file = open(in_output_probs_filename, "a")
     items = token_tag_counter_dict.items()
+    max_lst = []
     lst = []
     final_dict = {}
     for (key,value) in items:
+        for (k,v) in value.items():
+            prob_pair = v
+            tag = prob_pair[1]
+            prob = prob_pair[0]/tag_counter_dict[tag][0]
+            lst.append(f'{key}\t{tag}\t{prob}\n')
         max_pair = max(token_tag_counter_dict[key].values())
         tag = max_pair[1]
         prob = max_pair[0]/tag_counter_dict[tag][0]
-        if f'{key}\t{tag}\t{prob}\n' not in lst:
-            lst.append(f'{key}\t{tag}\t{prob}\n')
+        if f'{key}\t{tag}\t{prob}\n' not in max_lst:
+            max_lst.append(f'{key}\t{tag}\t{prob}\n')
             final_dict[key] = tag
     for elem in lst:
         prob_file.write(elem)
@@ -65,7 +75,76 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
     input_file.close()
     pass
 
+file = open("naive_predictions2.txt", "w")
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
+    #naive_predict2('naive_output_probs.txt', 'twitter_train.txt', 'twitter_dev_no_tag.txt', 'naive_predictions2.txt')
+    train_file = open(in_train_filename)
+    pair = train_file.readline().strip()
+    tag_dict = {}
+    token_dict = {}
+    # getting prob of tag and token from train set
+    while pair:
+        new_pair = pair.split()
+        token = new_pair[0]
+        tag = new_pair[1]
+        if tag not in tag_dict.keys():
+            tag_dict[tag] = 1
+        else:
+            count = tag_dict[tag]
+            tag_dict[tag] = count + 1
+        if token not in token_dict.keys():
+            token_dict[token] = 1
+        else:
+            count = token_dict[token]
+            token_dict[token] = count + 1
+        pair = train_file.readline().strip()
+        if pair == "":
+            pair = train_file.readline().strip()
+    train_file.close() # done with train set
+
+    total_word_count = sum(tag_dict.values())
+    prob_file = open(in_output_probs_filename)
+    prediction_file = open(out_prediction_filename, "a")
+    # transforming the probability
+    triplet = prob_file.readline().strip().split()
+
+    tag_token_counter_dict = {}
+    while triplet:
+        token = triplet[0]
+        tag = triplet[1]
+        prob = float(triplet[2])
+        prob_tag = tag_dict[tag] / total_word_count
+        prob_token = token_dict[token] / total_word_count
+        if token in tag_token_counter_dict.keys():
+            tag_token_counter_dict[token][tag] = ((prob_tag * prob / prob_token), tag)
+        else:
+            tag_token_counter_dict[token] = {}
+            tag_token_counter_dict[token][tag] = ((prob_tag * prob / prob_token), tag)
+        triplet = prob_file.readline().strip().split()
+        if triplet == '':
+            triplet = prob_file.readline().strip().split()
+    prob_file.close()
+    items = tag_token_counter_dict.items()
+    final_dict = {}
+    for (key, value) in items:
+        max_pair = max(tag_token_counter_dict[key].values())
+        prob = max_pair[0]
+        tag = max_pair[1]
+        final_dict[key.strip()] = tag
+    input_file = open(in_test_filename)
+    input = input_file.readline().strip()
+    while input: 
+        if input in final_dict.keys():
+            pred_tag = final_dict[input]
+        else:
+            pred_tag = '@'
+        prediction_file.write(f'{pred_tag}\n')
+        input = input_file.readline().strip()
+        if (input == "" or input == "\n"):
+            input = input_file.readline().strip()
+    prediction_file.close()
+    input_file.close()
+
     pass
 
 def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
@@ -112,16 +191,16 @@ def run():
     in_test_filename = f'{ddir}twitter_dev_no_tag.txt'
     in_ans_filename  = f'{ddir}twitter_dev_ans.txt'
     naive_prediction_filename = f'{ddir}naive_predictions.txt'
+    
     naive_predict(naive_output_probs_filename, in_test_filename, naive_prediction_filename)
     correct, total, acc = evaluate(naive_prediction_filename, in_ans_filename)
     print(f'Naive prediction accuracy:     {correct}/{total} = {acc}')
-
-    '''
-    naive_prediction_filename2 = f'{ddir}/naive_predictions2.txt'
+    
+    naive_prediction_filename2 = f'{ddir}naive_predictions2.txt'
     naive_predict2(naive_output_probs_filename, in_train_filename, in_test_filename, naive_prediction_filename2)
     correct, total, acc = evaluate(naive_prediction_filename2, in_ans_filename)
     print(f'Naive prediction2 accuracy:    {correct}/{total} = {acc}')
-
+    '''
     trans_probs_filename =  f'{ddir}/trans_probs.txt'
     output_probs_filename = f'{ddir}/output_probs.txt'
 
