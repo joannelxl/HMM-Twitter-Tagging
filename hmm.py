@@ -108,6 +108,7 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
     input_file.close()
     with open(out_prediction_filename, "w", encoding="utf-8") as pred:
         pred.write(text)
+        #accuracy is only 45.6%
 
 
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
