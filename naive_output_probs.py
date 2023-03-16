@@ -56,10 +56,11 @@ def num_words(file):
     with open(file) as f:
         #loop through every tag
         for line in f:
-            tag = line.strip()
+            token = line.strip()
             #if word do not exist in dict add 1 to word count
-            if tag not in freqs:
-                freqs[tag] = 1
+            print(token)
+            if token not in freqs:
+                freqs[token] = 1
     return sum(freqs.values())
 
 def calc_output_prob(tokens_file, tokens_tags_file):
