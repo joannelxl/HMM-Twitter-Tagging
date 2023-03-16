@@ -8,7 +8,7 @@ def naive_MLE():
     # initialise the dictionaries
     tag_count = {}
     tokens_for_tag = {}
-    DELTA = 1
+    DELTA = 0.1
 
     # count number of unique words
     with open('twitter_train.txt', encoding="utf8") as unique:
