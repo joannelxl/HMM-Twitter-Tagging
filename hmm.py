@@ -1,6 +1,4 @@
 # Implement the six functions below
-import json
-
 #placing possible tags into a list
 def tags(file):
     tags_list = []
@@ -78,6 +76,7 @@ def num_words(in_train_filename):
                     freqs[token] = 1
     return sum(freqs.values())
 
+#calculates naive output probabilities
 def calc_output_prob(in_train_filename):
     output_probabilities = {}
     sigma = 0.1
@@ -108,12 +107,16 @@ def calc_output_prob(in_train_filename):
                 token_prob_tag[tag] = numerator/denominator
     return output_probabilities
 
+#Question 2a
 output_probabilities = calc_output_prob("twitter_train.txt")
 with open('naive_output_probs.txt', 'w') as f:
     for token, tags_prob in output_probabilities.items():
         for tag, prob in tags_prob.items():
             f.write("{} \t {} \t {} \n ".format(tag, token, prob))
 
+#takes in the naive_output_probs txt file and output a dictionary
+#in the followinf form: 
+# {token=x1:{tag=y1:ouput_probability, tag=y2:ouput_probability}, token=x2:{tag=y1:ouput_probability, tag=y2:ouput_probability}}
 def convert_to_dict(in_output_probs_filename):
     output_probabilities = {}
     with open(in_output_probs_filename) as probs_file:
@@ -122,7 +125,7 @@ def convert_to_dict(in_output_probs_filename):
             if l:
                 tag = l[0]
                 token = l[1]
-                prob = l[2]
+                prob = float(l[2])
                 if token in output_probabilities:
                     token_tags = output_probabilities[token]
                     token_tags[tag] = prob
@@ -133,7 +136,7 @@ def convert_to_dict(in_output_probs_filename):
     return output_probabilities
 
                     
-
+#Question 2b
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
     naive_prediction = []
     naive_output_dict = convert_to_dict(in_output_probs_filename)
@@ -152,46 +155,41 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
         for prediction in naive_prediction:
             f.write(prediction)
             f.write('\n')
+#Question 2c
+#The accuracy of my prediction is 65.3% (3 s.f.)
 
+#Question 3a
+#Since P(y = j|x = w) = [P(x = w|y = j) * P(y = j)]/P(x = w) = [bj(w) * P(y = j)]/P(x = w) 
+# and since P(x = w) is a constant we can simply find the argmax of bj(w) * P(y = j)
 
+#Question 3b
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
     naive_prediction = []
-    word_count_dict = count_words(in_train_filename)
     tag_count_dict = count_tags(in_train_filename)
-    
-    total_tokens = sum(tag_count_dict.values())
-    tag_probs = {}
-    token_probs = {}
-    for key,value in tag_count_dict.items():
-        tag_probs[key] = value/total_tokens
-
-    for k,v in word_count_dict.items():
-        token_probs[k] = v/total_tokens
-
-
     naive_output_dict = convert_to_dict(in_output_probs_filename)
+
     with open(in_test_filename) as test_file:
         for word in test_file:
             token = word.strip()
             if (token):
                 if token in naive_output_dict:
                     token_tags = naive_output_dict[token]
-                    token_prob = token_probs[token]
+        
                     for tag, output_prob in token_tags.items():
-                        token_tags[tag] = output_prob * tag_probs[tag]
-                        naive_prediction.append(max(token_tags, key=token_tags.get))
+                        token_tags[tag] = output_prob * tag_count_dict[tag]
+                    naive_prediction.append(max(token_tags, key=token_tags.get))
                 else:
                     unseen_token = naive_output_dict["unseen_token_null"]
                     for tag, output_prob in unseen_token.items():
-                        #can multiply by 0??
-                        unseen_token[tag] = output_prob/tag_probs[tag]
-                        naive_prediction.append(max(unseen_token, key=unseen_token.get))  
+                        unseen_token[tag] = output_prob * tag_count_dict[tag]
+                    naive_prediction.append(max(unseen_token, key=unseen_token.get))  
     with open(out_prediction_filename, "w") as f:
         for prediction in naive_prediction:
             f.write(prediction)
             f.write('\n')                         
 
-
+#Question 3c
+#The accuracy of my prediction is 66.9% (3 s.f.)
 
 
 
