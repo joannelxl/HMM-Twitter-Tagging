@@ -1,10 +1,12 @@
 import json
+#placing tags into a list
 def tags(file):
     tags_list = []
     with open(file) as f:
         for tag in f:
             tags_list.append(tag.strip())
     return tags_list
+
 #returns a dictionary where count the frequency of tags
 #e.g. {tag = y1: count, tag = y2: count}
 def count_tags(file):
@@ -58,25 +60,24 @@ def num_words(file):
         for line in f:
             token = line.strip()
             #if word do not exist in dict add 1 to word count
-            print(token)
             if token not in freqs:
                 freqs[token] = 1
     return sum(freqs.values())
 
 def calc_output_prob(tokens_file, tokens_tags_file):
     output_probabilities = {}
-    sigma = 1
+    sigma = 0.1
     words = num_words(tokens_file)
     tags_dict = count_tags(tokens_tags_file)
     tags_tokens_dict = count_tokens_tags(tokens_tags_file)
     tags_list = tags("twitter_tags.txt")
 
-    output_probabilities["unseen token"] = {}
+    output_probabilities["unseen_token_null"] = {}
     for tag in tags_list:
         tag_count = tags_dict[tag]
         num = sigma
         den = tag_count + sigma * (words + 1)
-        output_probabilities["unseen token"][tag] = num/den
+        output_probabilities["unseen_token_null"][tag] = num/den
     
     for tag, tags_count in tags_dict.items():
         tags_tokens = tags_tokens_dict[tag]
@@ -96,6 +97,9 @@ def calc_output_prob(tokens_file, tokens_tags_file):
     return output_probabilities
 
 output_prob_dict = calc_output_prob("twitter_train_no_tag.txt", "twitter_train.txt")
+tags_tokens_dict = count_tokens_tags("twitter_train.txt")
 
-with open('naive_output_probs.txt', 'w') as f:
-    f.write(json.dumps(output_prob_dict))
+print(num_words("twitter_train_no_tag.txt"))
+
+with open('test', 'w') as f:
+    f.write(json.dumps(tags_tokens_dict))

@@ -1,26 +1,158 @@
 # Implement the six functions below
 import json
+
+#placing possible tags into a list
+def tags(file):
+    tags_list = []
+    with open(file) as f:
+        for tag in f:
+            tags_list.append(tag.strip())
+    return tags_list
+
+#tokens and their counts
+def count_words(in_train_filename):
+    freqs = {}
+    with open(in_train_filename) as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0]
+                if token in freqs:
+                    freqs[token] += 1
+                else:
+                    freqs[token] = 1
+    return freqs
+
+#tags and their counts
+def count_tags(in_train_filename):
+    freqs = {}
+    with open(in_train_filename) as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                tag = temp_list[1]
+                if tag in freqs:
+                    freqs[tag] += 1
+                else:
+                    freqs[tag] = 1
+    return freqs
+
+#returns a dictionary of dictionaries where count the number of token w associated with j 
+#e.g. {tag = y1:{token = x1: count, token = x2: count}, tag = y2:{token = x1: count, token = x2: count}}
+def count_tokens_tags(in_train_filename):
+    freqs = {}
+    with open(in_train_filename) as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0]
+                tag = temp_list[1]
+
+                if tag in freqs:
+                    tag_tokens = freqs[tag]
+                    if token in tag_tokens:
+                        tag_tokens[token] += 1
+                    else:
+                        tag_tokens[token] = 1
+                else:
+                    freqs[tag] = {}
+                    tag_tokens = freqs[tag]
+                    tag_tokens[token] = 1
+        
+    return freqs
+
+#counting the number of unique words
+def num_words(in_train_filename):
+    freqs = {}
+    with open(in_train_filename) as f:
+        #loop through every tag
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0]
+                if token not in freqs:
+                    freqs[token] = 1
+    return sum(freqs.values())
+
+def calc_output_prob(in_train_filename):
+    output_probabilities = {}
+    sigma = 0.1
+    words = num_words(in_train_filename)
+    tags_dict = count_tags(in_train_filename)
+    tags_tokens_dict = count_tokens_tags(in_train_filename)
+    tags_list = tags("twitter_tags.txt")
+
+    output_probabilities["unseen_token_null"] = {}
+    for tag in tags_list:
+        tag_count = tags_dict[tag]
+        num = sigma
+        den = tag_count + sigma * (words + 1)
+        output_probabilities["unseen_token_null"][tag] = num/den
+    
+    for tag, tags_count in tags_dict.items():
+        tags_tokens = tags_tokens_dict[tag]
+        for token, tokens_count in tags_tokens.items():
+            numerator = tokens_count + sigma
+            denominator = tags_count + sigma * (words + 1)
+
+            if token in output_probabilities:
+                token_prob_tag = output_probabilities[token]
+                token_prob_tag[tag] = numerator/denominator
+            else:
+                output_probabilities[token] = {}
+                token_prob_tag = output_probabilities[token]
+                token_prob_tag[tag] = numerator/denominator
+    return output_probabilities
+
+output_probabilities = calc_output_prob("twitter_train.txt")
+with open('naive_output_probs.txt', 'w') as f:
+    for token, tags_prob in output_probabilities.items():
+        for tag, prob in tags_prob.items():
+            f.write("{} \t {} \t {} \n ".format(tag, token, prob))
+
+def convert_to_dict(in_output_probs_filename):
+    output_probabilities = {}
+    with open(in_output_probs_filename) as probs_file:
+        for line in probs_file:
+            l = line.strip().split()
+            if l:
+                tag = l[0]
+                token = l[1]
+                prob = l[2]
+                if token in output_probabilities:
+                    token_tags = output_probabilities[token]
+                    token_tags[tag] = prob
+                else:
+                    output_probabilities[token] = {}
+                    token_tags = output_probabilities[token]
+                    token_tags[tag] = prob
+    return output_probabilities
+
+                    
+
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
     naive_prediction = []
-    with open(in_output_probs_filename) as probs_file:
-        data = probs_file.read()
-        naive_output_dict = json.loads(data)
-        with open(in_test_filename) as test_file:
-            for word in test_file:
-                token = word.strip()
-                if (token):
-                    if token in naive_output_dict:
-                        token_tags = naive_output_dict[token]
-                        naive_prediction.append(max(token_tags, key=token_tags.get))       
-                    else:
-                        unseen_token = naive_output_dict["unseen token"]
-                        naive_prediction.append(max(unseen_token, key=unseen_token.get))
+    naive_output_dict = convert_to_dict(in_output_probs_filename)
+    with open(in_test_filename) as test_file:
+        for word in test_file:
+            token = word.strip()
+            if (token):
+                if token in naive_output_dict:
+                    token_tags = naive_output_dict[token]
+                    naive_prediction.append(max(token_tags, key=token_tags.get))       
+                else:
+                    unseen_token = naive_output_dict["unseen_token_null"]
+                    naive_prediction.append(max(unseen_token, key=unseen_token.get))
 
     with open(out_prediction_filename, "w") as f:
         for prediction in naive_prediction:
             f.write(prediction)
             f.write('\n')
-                        
+
 
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
     naive_prediction = []
@@ -36,24 +168,23 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
     for k,v in word_count_dict.items():
         token_probs[k] = v/total_tokens
 
-    with open(in_output_probs_filename) as probs_file:
-        data = probs_file.read()
-        naive_output_dict = json.loads(data)
-        with open(in_test_filename) as test_file:
-            for word in test_file:
-                token = word.strip()
-                if (token):
-                    if token in naive_output_dict:
-                        token_tags = naive_output_dict[token]
-                        token_prob = token_probs[token]
-                        for tag, output_prob in token_tags.items():
-                            token_tags[tag] = (output_prob * token_prob)/tag_probs[tag]
+
+    naive_output_dict = convert_to_dict(in_output_probs_filename)
+    with open(in_test_filename) as test_file:
+        for word in test_file:
+            token = word.strip()
+            if (token):
+                if token in naive_output_dict:
+                    token_tags = naive_output_dict[token]
+                    token_prob = token_probs[token]
+                    for tag, output_prob in token_tags.items():
+                        token_tags[tag] = output_prob * tag_probs[tag]
                         naive_prediction.append(max(token_tags, key=token_tags.get))
-                    else:
-                        unseen_token = naive_output_dict["unseen token"]
-                        for tag, output_prob in unseen_token.items():
-                            #can multiply by 0??
-                            unseen_token[tag] = output_prob/tag_probs[tag]
+                else:
+                    unseen_token = naive_output_dict["unseen_token_null"]
+                    for tag, output_prob in unseen_token.items():
+                        #can multiply by 0??
+                        unseen_token[tag] = output_prob/tag_probs[tag]
                         naive_prediction.append(max(unseen_token, key=unseen_token.get))  
     with open(out_prediction_filename, "w") as f:
         for prediction in naive_prediction:
@@ -62,41 +193,6 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
 
 
 
-def count_words(file):
-    freqs = {}
-    with open(file) as f:
-        for line in f:
-            l = line.strip()
-            if l:
-                temp_list = []
-                for word in line.split():
-                    temp_list.append(word)
-                token = temp_list[0]
-
-                if token in freqs:
-                    freqs[token] += 1
-                else:
-                    freqs[token] = 1
-    print(freqs)
-    return freqs
-
-def count_tags(file):
-    freqs = {}
-    with open(file) as f:
-        for line in f:
-            l = line.strip()
-            if l:
-                temp_list = []
-                for t in line.split():
-                    temp_list.append(t)
-                tag = temp_list[1]
-
-                if tag in freqs:
-                    freqs[tag] += 1
-                else:
-                    freqs[tag] = 1
-    print(freqs)
-    return freqs
 
 
 
