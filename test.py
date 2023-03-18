@@ -1,3 +1,4 @@
+'''
 def function():
     file = open('twitter_train.txt')
     #f = open(in_output_probs_filename, "w")
@@ -102,3 +103,17 @@ def naive_predict():
     
 
 naive_predict()
+'''
+def count_lines(filename):
+    file = open(filename)
+    line = file.readline().strip()
+    counter = 0
+    while line:
+        counter = counter + 1
+        line = file.readline().strip()
+        if line == '':
+            line = file.readline().strip()
+    return counter
+
+print(count_lines('twitter_train.txt'))
+        

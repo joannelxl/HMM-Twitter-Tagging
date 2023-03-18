@@ -1,19 +1,13 @@
-file = open("naive_output_probs.txt", "w")
-file = open("naive_predictions.txt", "w")
 # Implement the six functions below
-def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
-    # naive_predict(naive_output_probs.txt, twitter_dev_no_tag.txt, naive_predictions.txt)
-    file = open('twitter_train.txt')
-    #f = open(in_output_probs_filename, "w")
-    pair = file.readline()
+def get_token_tag_count_from_file(train_data_filename):
+    file = open(train_data_filename)
+    pair = file.readline().strip()
     token_tag_counter_dict = {}
-    tag_counter_dict = {}
-
-    # getting no of times a tag appeared, and no of times a token appeared (tgt w the associated tag)
+    # getting no of times a token appears with the associated tag
     while pair:
-        newpair = pair.split()
-        token = newpair[0]
-        tag = newpair[1]
+        new_pair = pair.split()
+        token = new_pair[0]
+        tag = new_pair[1]
         if token in token_tag_counter_dict.keys():
             if tag in token_tag_counter_dict[token].keys():
                 count = token_tag_counter_dict[token][tag][0]
@@ -23,6 +17,21 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
         else:
             token_tag_counter_dict[token] = {}
             token_tag_counter_dict[token][tag] = (1, tag)
+        pair = file.readline()
+        if pair == '\n':
+            pair = file.readline()
+    file.close()
+    return token_tag_counter_dict
+
+def get_tag_count_from_file(train_data_filename):
+    file = open(train_data_filename)
+    pair = file.readline().strip()
+    tag_counter_dict = {}
+    # getting no of times a token appears with the associated tag
+    while pair:
+        new_pair = pair.split()
+        token = new_pair[0]
+        tag = new_pair[1]
         if tag in tag_counter_dict.keys():
             count = tag_counter_dict[tag][0]
             tag_counter_dict[tag] = (count + 1, tag)
@@ -32,41 +41,71 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
         if pair == '\n':
             pair = file.readline()
     file.close()
+    return tag_counter_dict
 
+def get_num_unique_words(filename):
+    d = get_token_tag_count_from_file(filename)
+    return len(d)
 
+def add_stuff_in_prob_file(in_output_probs_filename, token_tag_counter_dict, tag_counter_dict):
     prob_file = open(in_output_probs_filename, "a")
     items = token_tag_counter_dict.items()
+    num_unique_words = len(token_tag_counter_dict)
     max_lst = []
     lst = []
     final_dict = {}
-    for (key,value) in items:
-        for (k,v) in value.items():
+    token_tag_prob_dict = {}
+    SIGMA = 0.01
+    for (key,value) in items: # key is token and value is a dict of tag and count
+        token_tag_prob_dict[key] = {}
+        for (k,v) in value.items(): # k is tag and v is a tuple of count and tag
             prob_pair = v
             tag = prob_pair[1]
-            prob = prob_pair[0]/tag_counter_dict[tag][0]
+            prob = (prob_pair[0] + SIGMA)/(tag_counter_dict[tag][0] + SIGMA * (num_unique_words + 1))
             lst.append(f'{key}\t{tag}\t{prob}\n')
-        max_pair = max(token_tag_counter_dict[key].values())
+            token_tag_prob_dict[key][k] = (prob, tag)
+        max_pair = max(token_tag_prob_dict[key].values())
         tag = max_pair[1]
-        prob = max_pair[0]/tag_counter_dict[tag][0]
+        prob = max_pair[0]
         if f'{key}\t{tag}\t{prob}\n' not in max_lst:
             max_lst.append(f'{key}\t{tag}\t{prob}\n')
             final_dict[key] = tag
+    unknown_dict = {}
+    for (key, value) in tag_counter_dict.items():
+        prob = (0 + SIGMA) / (tag_counter_dict[key][0] + SIGMA * (num_unique_words + 1))
+        unknown_dict[key] = (prob, key)
+    max_pair = max(unknown_dict.values())
+    tag = max_pair[1]
+    prob = max_pair[0]
+    final_dict['unknown'] = tag
+    max_lst.append(f'unknown\t{tag}\t{prob}\n')
     for elem in lst:
         prob_file.write(elem)
     prob_file.close()
+    return final_dict
+    
+def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
+    # naive_predict(naive_output_probs.txt, twitter_dev_no_tag.txt, naive_predictions.txt)
+    file = open("naive_output_probs.txt", "w")
+    file = open("naive_predictions.txt", "w")
+
+    token_tag_counter_dict = get_token_tag_count_from_file('twitter_train.txt')
+    tag_counter_dict = get_tag_count_from_file('twitter_train.txt')
+    num_unique_words = get_num_unique_words('twitter_train.txt')
+    
+    # final_dict is a dict of token and predicted tag
+    final_dict = add_stuff_in_prob_file(in_output_probs_filename, token_tag_counter_dict, tag_counter_dict)
 
     input_file = open(in_test_filename)
-    num_unique_words = len(lst)
-    prob_unknown_word = 0.01 / (0.01 * num_unique_words + 1)
     input = input_file.readline().strip()
     prediction_file = open(out_prediction_filename, "a")
 
-    print(input)
+    #print(token_tag_counter_dict)
     while input:
-        if input in final_dict.keys():
-            final_tag = final_dict.get(input)
-        else: 
-            final_tag = '@'
+        # if input in final_dict.keys():
+        final_tag = final_dict.get(input)
+        # else: 
+            # final_tag = '@'
         prediction_file.write(f'{final_tag}\n')
         input = input_file.readline().strip()
         if (input == "" or input == "\n"):
@@ -75,9 +114,10 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
     input_file.close()
     pass
 
-file = open("naive_predictions2.txt", "w")
+
 def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename, out_prediction_filename):
     #naive_predict2('naive_output_probs.txt', 'twitter_train.txt', 'twitter_dev_no_tag.txt', 'naive_predictions2.txt')
+    file = open("naive_predictions2.txt", "w")
     train_file = open(in_train_filename)
     pair = train_file.readline().strip()
     tag_dict = {}
@@ -116,10 +156,10 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
         prob_tag = tag_dict[tag] / total_word_count
         prob_token = token_dict[token] / total_word_count
         if token in tag_token_counter_dict.keys():
-            tag_token_counter_dict[token][tag] = ((prob_tag * prob / prob_token), tag)
+            tag_token_counter_dict[token][tag] = ((prob_token * prob / prob_tag), tag)
         else:
             tag_token_counter_dict[token] = {}
-            tag_token_counter_dict[token][tag] = ((prob_tag * prob / prob_token), tag)
+            tag_token_counter_dict[token][tag] = ((prob_token * prob / prob_tag), tag)
         triplet = prob_file.readline().strip().split()
         if triplet == '':
             triplet = prob_file.readline().strip().split()
