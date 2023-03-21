@@ -7,7 +7,8 @@ def tags(file):
             tags_list.append(tag.strip())
     return tags_list
 
-#tokens and their counts
+#tokens and their counts and returns a dictionary as follows:
+#{token = x1: count of x1, token = x2: count of x2, ...}
 def count_words(in_train_filename):
     freqs = {}
     with open(in_train_filename) as f:
@@ -22,7 +23,8 @@ def count_words(in_train_filename):
                     freqs[token] = 1
     return freqs
 
-#tags and their counts
+#tags and their counts and returns a dictionary as follows:
+#{tag = y1: count of y1, tag = y2: count of y2, ...}
 def count_tags(in_train_filename):
     freqs = {}
     with open(in_train_filename) as f:
@@ -167,6 +169,12 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
     naive_prediction = []
     tag_count_dict = count_tags(in_train_filename)
     naive_output_dict = convert_to_dict(in_output_probs_filename)
+    total_words = sum(tag_count_dict.values())
+
+    for token in naive_output_dict:
+        token_tags = naive_output_dict[token]
+        for tag, output_prob in token_tags.items():
+            token_tags[tag] = output_prob * (tag_count_dict[tag]/total_words)
 
     with open(in_test_filename) as test_file:
         for word in test_file:
@@ -174,22 +182,18 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
             if (token):
                 if token in naive_output_dict:
                     token_tags = naive_output_dict[token]
-        
-                    for tag, output_prob in token_tags.items():
-                        token_tags[tag] = output_prob * tag_count_dict[tag]
                     naive_prediction.append(max(token_tags, key=token_tags.get))
                 else:
                     unseen_token = naive_output_dict["unseen_token_null"]
-                    for tag, output_prob in unseen_token.items():
-                        unseen_token[tag] = output_prob * tag_count_dict[tag]
-                    naive_prediction.append(max(unseen_token, key=unseen_token.get))  
+                    naive_prediction.append(max(unseen_token, key=unseen_token.get)) 
+   
     with open(out_prediction_filename, "w") as f:
         for prediction in naive_prediction:
             f.write(prediction)
             f.write('\n')                         
 
 #Question 3c
-#The accuracy of my prediction is 66.9% (3 s.f.)
+#The accuracy of my prediction is 69.3% (3 s.f.)
 
 
 
