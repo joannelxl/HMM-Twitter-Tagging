@@ -48,7 +48,7 @@ def numerator(file):
                     association_freq[tag]["Tokens"][token] += 1
     return association_freq
 
-#print(numerator('twitter_train.txt'))
+print(numerator('twitter_train.txt'))
 
 #number of unique words in the training data
 def num_words(file):
@@ -57,15 +57,14 @@ def num_words(file):
 
     #line is type string
     for line in trainData:
+        if line != '\n':
         #line is actly the word!! since got no tag
-        if line not in uniqueWords:
-            uniqueWords.append(line)
-        else:
-            pass
+            if line not in uniqueWords:
+                uniqueWords.append(line)
 
-    return len(uniqueWords) #ans: 5764         
+    return len(uniqueWords) #ans: 5764
 
-#print(num_words('twitter_train_no_tag.txt'))
+print(num_words('twitter_train_no_tag.txt'))
 
 def output_probability(train_file, no_tag_file, output_file):
     smoothing = 0.1
@@ -103,4 +102,4 @@ def output_probability(train_file, no_tag_file, output_file):
 
 final = output_probability('twitter_train.txt', 'twitter_train_no_tag.txt',
                    'naive_output_probs.txt')
-final.to_csv('naive_output_probs.txt', index = False, header = False)
+final.to_csv('naive_output_probs.txt', index = False)
