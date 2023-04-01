@@ -239,13 +239,9 @@ def transition_tags(in_train_filename):
                 tempList = l.split()
                 tag = tempList[1]
                 tags.append(tag)
-
-    length_tags = len(tags)
-
-    for x in range(length_tags):
+    for x in range(len(tags)):
         i = tags[x-1]
         j = tags[x]
-        #check if {j:i} key value pair exist in freq dict key
         temp = (i,j)
         if temp in freq:
             freq[temp] += 1
@@ -253,22 +249,16 @@ def transition_tags(in_train_filename):
             freq[temp] = 1
     return freq
 
-print(transition_tags("twitter_train.txt"))
+#print(transition_tags("twitter_train.txt"))
 
 #freq = {tag i:count}
 def count_tag_i(in_train_filename):
     return count_tags(in_train_filename)
-    
-        
-print(count_tag_i("twitter_train.txt"))
-
 
 ################################# QUESTION 4A ################################
 def calc_transition_prob(in_train_filename, out_prob_filename):
-    #final dict
     #transition_probs = { transition=(i, j} : prob = num }
     transition_probs = {}
-    DELTA = 0.01
     word_count = num_words(in_train_filename)
     transition_dict = transition_tags(in_train_filename)
     tag_count = count_tag_i(in_train_filename)
@@ -285,15 +275,10 @@ def calc_transition_prob(in_train_filename, out_prob_filename):
 
     return transition_probs
 
-
 transition_probabilities = calc_transition_prob("twitter_train.txt", "trans_prob.txt")
 with open('trans_prob.txt', 'w', encoding="utf-8") as f:
     for i_to_j, trans_prob in transition_probabilities.items():
         f.write("{} \t {} \t {} \n ".format(i_to_j[0], i_to_j[1], trans_prob))
-        
-
-    
-print(calc_transition_prob("twitter_train.txt", "trans_prob.txt"))
 
 
 def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
