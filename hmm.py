@@ -229,11 +229,6 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
 # The accuracy of our prediction is 69.3% (3 s.f.), where the number of correctly
 # predicted tags / number of predictions is 955/1378.
 
-
-def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
-                    out_predictions_filename):
-    pass
-
 ################################### QUESTION 4A #######################################
 
 ###########  TRANSITION PROBABILITY #############
@@ -280,19 +275,16 @@ def transition_probability(file):
             start_state = tup[0]
             next_state = tup[1]
             count_yt_1 = tag_count_dictionary[start_state]
-            trans_prob = count / count_yt_1
+            trans_prob = (count + DELTA) / (count_yt_1 + DELTA * (words + 1))
             text += "{} \t {} \t {} \n ".format(start_state,
                                                 next_state, trans_prob)
-        # smoothing
+        # unknowns
         for tup, count in transition_dictionary.items():
             start_state = tup[0]
-            next_state = tup[1]
             count_yt_1 = tag_count_dictionary[start_state]
-            trans_prob = (count + DELTA) / (count_yt_1 + DELTA * (words + 1))
-            unseen_start_state = "Unseen_" + start_state
-            unseen_next_state = "Unseen_" + next_state
-            text += "{} \t {} \t {} \n ".format(unseen_start_state,
-                                                unseen_next_state, trans_prob)
+            trans_prob = (DELTA) / (count_yt_1 + DELTA * (words + 1))
+            text += "{} \t {} \t {} \n ".format(start_state,
+                                                "Unseen", trans_prob)
 
         trans_output_file.write(text)
 
@@ -306,6 +298,15 @@ with open('output_probs.txt', 'w', encoding="utf8") as f:
 
 twt_file = 'C:\\Users\\user\\Documents\\NUS\\Academics\\Y2S2\\BT3102\\project\\project_q4_5\\HMM-Twitter-Tagging\\twitter_train.txt'
 transition_probability(twt_file)
+
+##################################### QUESTION 4B #######################################
+
+
+def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
+                    out_predictions_filename):
+    pass
+
+#################################### QUESTION 5 ###########################################
 
 
 def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
