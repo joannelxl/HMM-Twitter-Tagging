@@ -251,7 +251,6 @@ def transition_tags(in_train_filename):
 
 #print(transition_tags("twitter_train.txt"))
 
-#freq = {tag i:count}
 def count_tag_i(in_train_filename):
     return count_tags(in_train_filename)
 
