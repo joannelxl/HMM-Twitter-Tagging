@@ -17,16 +17,6 @@ def tags(file):
             tags_list.append(tag.strip())
     return tags_list
 
-
-def tags_list(file):
-    tags_list = []
-    with open(file, encoding="utf8") as f:
-        for line in f:
-            line = line.split()
-            if len(line) == 2:
-                tags_list.append(line[1].strip())
-    return tags_list
-
 # tokens and their counts and returns a dictionary as follows:
 # {token = x1: count of x1, token = x2: count of x2, ...}
 
@@ -246,6 +236,19 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
 
 ################################### QUESTION 4A #######################################
 
+###########  TRANSITION PROBABILITY #############
+# put tags in a list in order
+
+
+def tags_list(file):
+    tags_list = []
+    with open(file, encoding="utf8") as f:
+        for line in f:
+            line = line.split()
+            if len(line) == 2:
+                tags_list.append(line[1].strip())
+    return tags_list
+
 # transition dictionary: {(tag y - 1,tag y): count, (tag y, tag y+1): count}
 
 
@@ -265,9 +268,11 @@ def transition_dic(file):
 
 
 def transition_probability(file):
-    transition_dictionary = transition_dic(file)
-    # print(transition_dictionary)
+    DELTA = 0.1
+    words = num_words(file)
     tag_count_dictionary = count_tags(file)
+    transition_dictionary = transition_dic(file)
+
     text = "{} \t {} \t {} \n".format("Yt-1", "Yt", "Transition Probability")
     trans_output_file = 'trans_output_file.txt'
     with open(trans_output_file, 'w', encoding="utf8") as trans_output_file:
@@ -278,9 +283,26 @@ def transition_probability(file):
             trans_prob = count / count_yt_1
             text += "{} \t {} \t {} \n ".format(start_state,
                                                 next_state, trans_prob)
-        trans_output_file.write(text)
-        print("done")
+        # smoothing
+        for tup, count in transition_dictionary.items():
+            start_state = tup[0]
+            next_state = tup[1]
+            count_yt_1 = tag_count_dictionary[start_state]
+            trans_prob = (count + DELTA) / (count_yt_1 + DELTA * (words + 1))
+            unseen_start_state = "Unseen_" + start_state
+            unseen_next_state = "Unseen_" + next_state
+            text += "{} \t {} \t {} \n ".format(unseen_start_state,
+                                                unseen_next_state, trans_prob)
 
+        trans_output_file.write(text)
+
+
+###############  OUTPUT_PROBABILITY ###################
+output_probabilities = calc_output_prob("twitter_train.txt")
+with open('output_probs.txt', 'w', encoding="utf8") as f:
+    for token, tags_prob in output_probabilities.items():
+        for tag, prob in tags_prob.items():
+            f.write("{} \t {} \t {} \n ".format(tag, token, prob))
 
 twt_file = 'C:\\Users\\user\\Documents\\NUS\\Academics\\Y2S2\\BT3102\\project\\project_q4_5\\HMM-Twitter-Tagging\\twitter_train.txt'
 transition_probability(twt_file)
