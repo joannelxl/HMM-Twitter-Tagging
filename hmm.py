@@ -279,12 +279,15 @@ def transition_probability(file):
             text += "{} \t {} \t {} \n ".format(start_state,
                                                 next_state, trans_prob)
         # unknowns
+        tags_seen = []
         for tup, count in transition_dictionary.items():
             start_state = tup[0]
-            count_yt_1 = tag_count_dictionary[start_state]
-            trans_prob = (DELTA) / (count_yt_1 + DELTA * (words + 1))
-            text += "{} \t {} \t {} \n ".format(start_state,
-                                                "Unseen", trans_prob)
+            if start_state not in tags_seen:
+                count_yt_1 = tag_count_dictionary[start_state]
+                trans_prob = (DELTA) / (count_yt_1 + DELTA * (words + 1))
+                text += "{} \t {} \t {} \n ".format(start_state,
+                                                    "Unseen", trans_prob)
+                tags_seen += start_state
 
         trans_output_file.write(text)
 
