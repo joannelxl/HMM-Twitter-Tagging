@@ -20,7 +20,7 @@ def tags(file):
 # {token = x1: count of x1, token = x2: count of x2, ...}
 def count_words(in_train_filename):
     freqs = {}
-    with open(in_train_filename) as f:
+    with open(in_train_filename, encoding="utf-8") as f:
         for line in f:
             l = line.strip()
             if l:
@@ -36,7 +36,7 @@ def count_words(in_train_filename):
 # {tag = y1: count of y1, tag = y2: count of y2, ...}
 def count_tags(in_train_filename):
     freqs = {}
-    with open(in_train_filename) as f:
+    with open(in_train_filename, encoding="utf-8") as f:
         for line in f:
             l = line.strip()
             if l:
@@ -52,10 +52,13 @@ def count_tags(in_train_filename):
 # e.g. {tag = y1:{token = x1: count, token = x2: count}, tag = y2:{token = x1: count, token = x2: count}}
 def count_tokens_tags(in_train_filename):
     freqs = {}
-    with open(in_train_filename) as f:
+    with open(in_train_filename, encoding="utf-8") as f:
         for line in f:
+            #.strip removes spaces at beginning and end of line
             l = line.strip()
+            #if line is not empty
             if l:
+                #.split separates words by comma
                 temp_list = l.split()
                 token = temp_list[0]
                 tag = temp_list[1]
@@ -75,7 +78,7 @@ def count_tokens_tags(in_train_filename):
 # counting the number of unique words
 def num_words(in_train_filename):
     freqs = {}
-    with open(in_train_filename) as f:
+    with open(in_train_filename, encoding="utf-8") as f:
         #loop through every tag
         for line in f:
             l = line.strip()
@@ -122,7 +125,7 @@ def calc_output_prob(in_train_filename):
 # {token=x1:{tag=y1:ouput_probability, tag=y2:ouput_probability}, token=x2:{tag=y1:ouput_probability, tag=y2:ouput_probability}}
 def convert_to_dict(in_output_probs_filename):
     output_probabilities = {}
-    with open(in_output_probs_filename) as probs_file:
+    with open(in_output_probs_filename, encoding="utf-8") as probs_file:
         for line in probs_file:
             l = line.strip().split()
             if l:
@@ -141,7 +144,7 @@ def convert_to_dict(in_output_probs_filename):
 ################################### QUESTION 2A #####################################
 # For this question, we chose a DELTA value of 0.1.
 output_probabilities = calc_output_prob("twitter_train.txt")
-with open('naive_output_probs.txt', 'w') as f:
+with open('naive_output_probs.txt', 'w', encoding="utf-8") as f:
     for token, tags_prob in output_probabilities.items():
         for tag, prob in tags_prob.items():
             f.write("{} \t {} \t {} \n ".format(tag, token, prob))
@@ -150,7 +153,7 @@ with open('naive_output_probs.txt', 'w') as f:
 def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_filename):
     naive_prediction = []
     naive_output_dict = convert_to_dict(in_output_probs_filename)
-    with open(in_test_filename) as test_file:
+    with open(in_test_filename, encoding="utf-8") as test_file:
         for word in test_file:
             token = word.strip()
             if (token):
@@ -161,7 +164,7 @@ def naive_predict(in_output_probs_filename, in_test_filename, out_prediction_fil
                     unseen_token = naive_output_dict["unseen_token_null"]
                     naive_prediction.append(max(unseen_token, key=unseen_token.get))
 
-    with open(out_prediction_filename, "w") as f:
+    with open(out_prediction_filename, "w", encoding="utf-8") as f:
         for prediction in naive_prediction:
             f.write(prediction)
             f.write('\n')
@@ -189,7 +192,7 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
         for tag, output_prob in token_tags.items():
             token_tags[tag] = output_prob * (tag_count_dict[tag]/total_words)
 
-    with open(in_test_filename) as test_file:
+    with open(in_test_filename, encoding="utf-8") as test_file:
         for word in test_file:
             token = word.strip()
             if (token):
@@ -200,7 +203,7 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
                     unseen_token = naive_output_dict["unseen_token_null"]
                     naive_prediction.append(max(unseen_token, key=unseen_token.get)) 
    
-    with open(out_prediction_filename, "w") as f:
+    with open(out_prediction_filename, "w", encoding="utf-8") as f:
         for prediction in naive_prediction:
             f.write(prediction)
             f.write('\n')                         
@@ -209,6 +212,88 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
 # The accuracy of our prediction is 69.3% (3 s.f.), where the number of correctly 
 # predicted tags / number of predictions is 955/1378.
 
+
+
+############################# HELPER FUNCTIONS FOR Q4&5 ###############################
+
+#q4a output probabilities
+output_probabilities = calc_output_prob("twitter_train.txt")
+with open('output_probs.txt', 'w', encoding="utf-8") as f:
+    for token, tags_prob in output_probabilities.items():
+        for tag, prob in tags_prob.items():
+            f.write("{} \t {} \t {} \n ".format(tag, token, prob))
+
+#q4a transition probabilities
+#numerator (count transition tags)
+
+#iterate through the train.txt file, compare current and next
+# freq = {transition = {i:j} : count = freq of this transition }
+
+def transition_tags(in_train_filename):
+    freq = {}
+    tags = []
+    with open(in_train_filename, encoding = "utf-8") as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                tempList = l.split()
+                tag = tempList[1]
+                tags.append(tag)
+
+    length_tags = len(tags)
+
+    for x in range(length_tags):
+        i = tags[x-1]
+        j = tags[x]
+        #check if {j:i} key value pair exist in freq dict key
+        temp = (i,j)
+        if temp in freq:
+            freq[temp] += 1
+        else:
+            freq[temp] = 1
+    return freq
+
+print(transition_tags("twitter_train.txt"))
+
+#freq = {tag i:count}
+def count_tag_i(in_train_filename):
+    return count_tags(in_train_filename)
+    
+        
+print(count_tag_i("twitter_train.txt"))
+
+
+################################# QUESTION 4A ################################
+def calc_transition_prob(in_train_filename, out_prob_filename):
+    #final dict
+    #transition_probs = { transition=(i, j} : prob = num }
+    transition_probs = {}
+    DELTA = 0.01
+    word_count = num_words(in_train_filename)
+    transition_dict = transition_tags(in_train_filename)
+    tag_count = count_tag_i(in_train_filename)
+       
+    for transition, count in transition_dict.items():
+        numerator = count
+        denominator = tag_count[transition[0]]
+        tag_i = transition[0]
+        tag_j = transition[1]
+        temp = (tag_i, tag_j)
+
+        trans_prob = numerator / denominator
+        transition_probs[temp] = trans_prob
+
+    return transition_probs
+
+
+transition_probabilities = calc_transition_prob("twitter_train.txt", "trans_prob.txt")
+with open('trans_prob.txt', 'w', encoding="utf-8") as f:
+    for i_to_j, trans_prob in transition_probabilities.items():
+        f.write("{} \t {} \t {} \n ".format(i_to_j[0], i_to_j[1], trans_prob))
+        
+
+    
+print(calc_transition_prob("twitter_train.txt", "trans_prob.txt"))
 
 
 def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
@@ -224,10 +309,10 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
 
 def evaluate(in_prediction_filename, in_answer_filename):
     """Do not change this method"""
-    with open(in_prediction_filename) as fin:
+    with open(in_prediction_filename, encoding="utf-8") as fin:
         predicted_tags = [l.strip() for l in fin.readlines() if len(l.strip()) != 0]
 
-    with open(in_answer_filename) as fin:
+    with open(in_answer_filename, encoding="utf-8") as fin:
         ground_truth_tags = [l.strip() for l in fin.readlines() if len(l.strip()) != 0]
 
     assert len(predicted_tags) == len(ground_truth_tags)
