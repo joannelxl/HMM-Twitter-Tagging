@@ -9,11 +9,22 @@
 ##################### HELPER FUNCTIONS #######################
 
 # placing possible tags into a list
+# placing possible tags into a list
 def tags(file):
     tags_list = []
     with open(file) as f:
         for tag in f:
             tags_list.append(tag.strip())
+    return tags_list
+
+
+def tags_list(file):
+    tags_list = []
+    with open(file, encoding="utf8") as f:
+        for line in f:
+            line = line.split()
+            if len(line) == 2:
+                tags_list.append(line[1].strip())
     return tags_list
 
 # tokens and their counts and returns a dictionary as follows:
@@ -22,7 +33,7 @@ def tags(file):
 
 def count_words(in_train_filename):
     freqs = {}
-    with open(in_train_filename) as f:
+    with open(in_train_filename, encoding="utf8") as f:
         for line in f:
             l = line.strip()
             if l:
@@ -232,6 +243,47 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
 def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
                     out_predictions_filename):
     pass
+
+################################### QUESTION 4A #######################################
+
+# transition dictionary: {(tag y - 1,tag y): count, (tag y, tag y+1): count}
+
+
+def transition_dic(file):
+    transition_dic = {}
+    tag_list = tags_list(file)
+    for idx in range(len(tag_list)):
+        if idx != len(tag_list) - 1:
+            temp_tuple = (tag_list[idx].strip(), tag_list[idx + 1].strip())
+            if temp_tuple not in transition_dic:
+                transition_dic[temp_tuple] = 1
+            else:
+                transition_dic[temp_tuple] += 1
+    return transition_dic
+
+# compute transition probability:
+
+
+def transition_probability(file):
+    transition_dictionary = transition_dic(file)
+    # print(transition_dictionary)
+    tag_count_dictionary = count_tags(file)
+    text = "{} \t {} \t {} \n".format("Yt-1", "Yt", "Transition Probability")
+    trans_output_file = 'trans_output_file.txt'
+    with open(trans_output_file, 'w', encoding="utf8") as trans_output_file:
+        for tup, count in transition_dictionary.items():
+            start_state = tup[0]
+            next_state = tup[1]
+            count_yt_1 = tag_count_dictionary[start_state]
+            trans_prob = count / count_yt_1
+            text += "{} \t {} \t {} \n ".format(start_state,
+                                                next_state, trans_prob)
+        trans_output_file.write(text)
+        print("done")
+
+
+twt_file = 'C:\\Users\\user\\Documents\\NUS\\Academics\\Y2S2\\BT3102\\project\\project_q4_5\\HMM-Twitter-Tagging\\twitter_train.txt'
+transition_probability(twt_file)
 
 
 def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
