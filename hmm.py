@@ -235,13 +235,29 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
 # put tags in a list in order
 
 
+def count_tweets(file):
+    count_tweets = 0
+    with open(file, encoding="utf8") as f:
+        for line in f:
+            line = line.split()
+            if len(line) == 2:
+                continue
+            else:
+                count_tweets += 1
+    return count_tweets
+
+
 def tags_list(file):
     tags_list = []
+    count_tweets = 0
     with open(file, encoding="utf8") as f:
         for line in f:
             line = line.split()
             if len(line) == 2:
                 tags_list.append(line[1].strip())
+            else:
+                tags_list.append('END'.strip())
+                count_tweets += 1
     return tags_list
 
 # transition dictionary: {(tag y - 1,tag y): count, (tag y, tag y+1): count}
@@ -250,13 +266,61 @@ def tags_list(file):
 def transition_dic(file):
     transition_dic = {}
     tag_list = tags_list(file)
+
     for idx in range(len(tag_list)):
-        if idx != len(tag_list) - 1:
+        # handle first index
+        if idx == 0:
+            temp_tuple = ("START", tag_list[idx].strip())
+            transition_dic[temp_tuple] = 1
+
+        # if it is not start or stop state
+        elif tag_list[idx - 1] != 'END' and tag_list[idx] != 'END' and tag_list[idx + 1] != 'END':
             temp_tuple = (tag_list[idx].strip(), tag_list[idx + 1].strip())
             if temp_tuple not in transition_dic:
                 transition_dic[temp_tuple] = 1
             else:
                 transition_dic[temp_tuple] += 1
+
+        # handle the distinction between 2 tweets
+        elif tag_list[idx] == 'END':
+            continue
+
+        # if tag has both start and stop state
+        elif tag_list[idx - 1] == 'END' and tag_list[idx] != 'END' and tag_list[idx + 1] == 'END':
+            temp_tuple_start = ("START", tag_list[idx].strip())
+            if temp_tuple_start not in transition_dic:
+                transition_dic[temp_tuple] = 1
+            else:
+                transition_dic[temp_tuple] += 1
+
+            temp_tuple_end = (tag_list[idx].strip(), "STOP")
+            if temp_tuple_end not in transition_dic:
+                transition_dic[temp_tuple] = 1
+            else:
+                transition_dic[temp_tuple] += 1
+
+        # if start state only:
+        elif tag_list[idx] != 'END' and tag_list[idx - 1] == 'END':
+            temp_tuple_start = ("START", tag_list[idx].strip())
+            if temp_tuple_start not in transition_dic:
+                transition_dic[temp_tuple_start] = 1
+            else:
+                transition_dic[temp_tuple_start] += 1
+
+            temp_tuple_transition = (
+                tag_list[idx].strip(), tag_list[idx + 1].strip())
+            if temp_tuple_transition not in transition_dic:
+                transition_dic[temp_tuple_transition] = 1
+            else:
+                transition_dic[temp_tuple_transition] += 1
+
+        # if stop state only:
+        elif tag_list[idx] != 'END' and tag_list[idx + 1] == 'END':
+            temp_tuple_end = (tag_list[idx].strip(), 'STOP')
+            if temp_tuple_end not in transition_dic:
+                transition_dic[temp_tuple_end] = 1
+            else:
+                transition_dic[temp_tuple_end] += 1
     return transition_dic
 
 # compute transition probability:
@@ -267,27 +331,33 @@ def transition_probability(file):
     words = num_words(file)
     tag_count_dictionary = count_tags(file)
     transition_dictionary = transition_dic(file)
+    tweet_count = count_tweets(file)
 
     text = "{} \t {} \t {} \n".format("Yt-1", "Yt", "Transition Probability")
     trans_output_file = 'trans_output_file.txt'
     with open(trans_output_file, 'w', encoding="utf8") as trans_output_file:
+        # knowns
         for tup, count in transition_dictionary.items():
             start_state = tup[0]
             next_state = tup[1]
-            count_yt_1 = tag_count_dictionary[start_state]
-            trans_prob = (count + DELTA) / (count_yt_1 + DELTA * (words + 1))
+            if start_state == "START":
+                trans_prob = (count + DELTA) / \
+                    (tweet_count + DELTA * (words + 1))
+            else:
+                count_yt_1 = tag_count_dictionary[start_state]
+                trans_prob = (count + DELTA) / \
+                    (count_yt_1 + DELTA * (words + 1))
             text += "{} \t {} \t {} \n ".format(start_state,
                                                 next_state, trans_prob)
         # unknowns
         tags_seen = []
-        for tup, count in transition_dictionary.items():
-            start_state = tup[0]
-            if start_state not in tags_seen:
-                count_yt_1 = tag_count_dictionary[start_state]
+        for tag in tag_count_dictionary.keys():
+            if tag not in tags_seen:
+                count_yt_1 = tag_count_dictionary[tag]
                 trans_prob = (DELTA) / (count_yt_1 + DELTA * (words + 1))
-                text += "{} \t {} \t {} \n ".format(start_state,
+                text += "{} \t {} \t {} \n ".format(tag,
                                                     "Unseen", trans_prob)
-                tags_seen += start_state
+                tags_seen += tag
 
         trans_output_file.write(text)
 
