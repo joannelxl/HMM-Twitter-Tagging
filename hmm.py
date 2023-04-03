@@ -7,9 +7,12 @@
 # Implement the six functions below
 
 ##################### HELPER FUNCTIONS #######################
+import numpy as np
 
 # placing possible tags into a list
 # placing possible tags into a list
+
+
 def tags(file):
     tags_list = []
     with open(file) as f:
@@ -263,15 +266,27 @@ def tags_list(file):
 # transition dictionary: {(tag y - 1,tag y): count, (tag y, tag y+1): count}
 
 
+def put_tags_in_list(file):
+    tag_count_dictionary = count_tags(file)
+    ls = []
+    for i in tag_count_dictionary.keys():
+        ls.append(i)
+    return ls
+
+
 def transition_dic(file):
+    tag_count_dictionary = count_tags(file)
     transition_dic = {}
     tag_list = tags_list(file)
+    unique_tag_list = put_tags_in_list(file)
 
     for idx in range(len(tag_list)):
         # handle first index
         if idx == 0:
             temp_tuple = ("START", tag_list[idx].strip())
             transition_dic[temp_tuple] = 1
+            if tag_list[idx] in unique_tag_list:
+                unique_tag_list.remove(tag_list[idx])
 
         # if it is not start or stop state
         elif tag_list[idx - 1] != 'END' and tag_list[idx] != 'END' and tag_list[idx + 1] != 'END':
@@ -287,6 +302,9 @@ def transition_dic(file):
 
         # if tag has both start and stop state
         elif tag_list[idx - 1] == 'END' and tag_list[idx] != 'END' and tag_list[idx + 1] == 'END':
+            if tag_list[idx] in unique_tag_list:
+                unique_tag_list.remove(tag_list[idx])
+
             temp_tuple_start = ("START", tag_list[idx].strip())
             if temp_tuple_start not in transition_dic:
                 transition_dic[temp_tuple] = 1
@@ -301,6 +319,9 @@ def transition_dic(file):
 
         # if start state only:
         elif tag_list[idx] != 'END' and tag_list[idx - 1] == 'END':
+            if tag_list[idx] in unique_tag_list:
+                unique_tag_list.remove(tag_list[idx])
+
             temp_tuple_start = ("START", tag_list[idx].strip())
             if temp_tuple_start not in transition_dic:
                 transition_dic[temp_tuple_start] = 1
@@ -321,6 +342,12 @@ def transition_dic(file):
                 transition_dic[temp_tuple_end] = 1
             else:
                 transition_dic[temp_tuple_end] += 1
+
+    # handle start states for unseen tags
+    for tag in unique_tag_list:
+        temp_tuple_start = ('START', tag)
+        transition_dic[temp_tuple_start] = 0
+    print(transition_dic)
     return transition_dic
 
 # compute transition probability:
@@ -375,11 +402,25 @@ transition_probability(twt_file)
 ##################################### QUESTION 4B #######################################
 
 
-def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
-                    out_predictions_filename):
-    pass
+def count_lines(file):
+    with open(file, 'r', encoding="utf8") as fp:
+        num_lines = sum(1 for line in fp if line.rstrip())
+        return num_lines
 
-#################################### QUESTION 5 ###########################################
+
+# def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
+#                     out_predictions_filename):
+
+#     num_hidden_states = count_lines(in_tags_filename)
+
+#     with open(in_test_filename, 'w', encoding="utf8") as in_test_f:
+#         for line in in_test_f:
+#             if line.strip():
+
+        # pi_matrix = np.empty((sequence_length, num_hidden_states))
+        # bp = np.empty((sequence_length, num_hidden_states))
+
+        #################################### QUESTION 5 ###########################################
 
 
 def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
