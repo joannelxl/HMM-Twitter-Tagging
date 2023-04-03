@@ -8,6 +8,7 @@
 
 ##################### HELPER FUNCTIONS #######################
 import numpy as np
+import re
 
 # placing possible tags into a list
 # placing possible tags into a list
@@ -347,7 +348,7 @@ def transition_dic(file):
     for tag in unique_tag_list:
         temp_tuple_start = ('START', tag)
         transition_dic[temp_tuple_start] = 0
-    print(transition_dic)
+    # print(transition_dic)
     return transition_dic
 
 # compute transition probability:
@@ -408,6 +409,165 @@ def count_lines(file):
         return num_lines
 
 
+def put_line_in_list(file):
+    ls = []
+    with open(file, 'r', encoding="utf8") as fp:
+        for line in fp:
+            l = line.strip()
+            if l not in ls:
+                ls.append(l)
+    return ls
+
+
+def viterbi(observations, states, start_p, trans_p, emit_p, end_p):
+    V = [{}]
+    # print(emit_p)
+    for st in states:
+        if observations[0] not in emit_p[st]:
+            V[0][st] = {"prob": start_p[st] * emit_p[st]
+                        ['unseen_token_null'], "prev": None}
+        else:
+            V[0][st] = {"prob": start_p[st] * emit_p[st]
+                        [observations[0]], "prev": None}
+
+    for t in range(1, len(observations)):
+        V.append({})
+        for st in states:
+            # print(states[0])
+            if st not in trans_p[states[0]]:
+                max_tr_prob = V[t - 1][states[0]]["prob"] * \
+                    trans_p[states[0]]['Unseen']
+
+            else:
+                max_tr_prob = V[t - 1][states[0]]["prob"] * \
+                    trans_p[states[0]][st]
+
+            prev_st_selected = states[0]
+            for prev_st in states[1:]:
+                if st not in trans_p[prev_st]:
+                    tr_prob = V[t - 1][prev_st]["prob"] * \
+                        trans_p[prev_st]['Unseen']
+                else:
+                    tr_prob = V[t - 1][prev_st]["prob"] * \
+                        trans_p[prev_st][st]
+
+                if tr_prob > max_tr_prob:
+                    max_tr_prob = tr_prob
+                    prev_st_selected = prev_st
+
+            if observations[t] not in emit_p[st]:
+                max_prob = max_tr_prob * emit_p[st]['unseen_token_null']
+            else:
+                max_prob = max_tr_prob * emit_p[st][observations[t]]
+            V[t][st] = {"prob": max_prob, "prev": prev_st_selected}
+
+    opt = []
+    max_prob = 0.0
+    best_st = None
+    for st, data in V[-1].items():
+        if data["prob"] > max_prob:
+            max_prob = data["prob"]
+            best_st = st
+    opt.append(best_st)
+    previous = best_st
+
+    for t in range(len(V) - 2, -1, -1):
+        opt.insert(0, V[t + 1][previous]["prev"])
+        previous = V[t + 1][previous]["prev"]
+
+    return opt
+
+
+def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
+                    out_predictions_filename):
+    ans_list = []
+
+    #### prep data ####
+
+    # start_p {tag1: prob, tag2: prob}
+    start_p = {}
+
+    # trans_p {tag1: {tag1: prob2, tag2: prob2}}
+    trans_p = {}
+
+    # output_p {tag1: {token1: prob1}, tag2: {token2, prob2}}
+    output_p = {}
+
+    # end_p {tag1: prob, tag2: prob}
+    end_p = {}
+
+    # all unique tags in list
+    unique_tag_list = put_line_in_list(in_tags_filename)
+
+    # to account for missing stop states:
+    stop_state_list = put_line_in_list(in_tags_filename)
+
+    # make start, end and trans dictionaries
+    with open(in_trans_probs_filename, encoding="utf8") as in_trans_probs_f:
+        next(in_trans_probs_f)
+        for prob_line in in_trans_probs_f:
+            prob_line = prob_line.strip()
+            if prob_line:
+                words = re.split(r'\t', prob_line)
+                yt_1 = words[0].strip()
+                yt = words[1].strip()
+                probability = float(words[2])
+
+                if yt_1 == "START":
+                    # adding into start_p
+                    start_p[yt] = probability
+                elif yt == "STOP":
+                    end_p[yt_1] = probability
+                    if yt_1 in stop_state_list:
+                        stop_state_list.remove(yt_1)
+                else:
+                    # adding into trans_p
+                    if yt_1 in trans_p:
+                        trans_p[yt_1][yt] = probability
+                    else:
+                        trans_p[yt_1] = {}
+                        trans_p[yt_1][yt] = probability
+    # account for missing stop states:
+    for tag in stop_state_list:
+        end_p[tag] = trans_p[tag]["Unseen"]
+
+    # make output_p dictionary
+    with open(in_output_probs_filename, encoding="utf8") as in_output_prob_f:
+        for prob_line in in_output_prob_f:
+            prob_line = prob_line.strip()
+            if prob_line:
+                words = re.split(r'\t', prob_line)
+                tag = words[0].strip()
+                token = words[1].strip()
+                probability = float(words[2])
+
+                # adding into output_p
+                if tag in output_p:
+                    output_p[tag][token] = probability
+                else:
+                    output_p[tag] = {}
+                    output_p[tag][token] = probability
+
+    #### Do actual viterbi on each tweet ####
+    with open(in_test_filename, encoding="utf8") as f:
+        one_tweet = []
+        for line in f:
+            if line.strip():
+                one_tweet.append(line.strip())
+            else:
+                # print(one_tweet)
+                ans_list.extend(
+                    viterbi(one_tweet, unique_tag_list, start_p, trans_p, output_p, end_p))
+                one_tweet.clear()
+
+    # write into output prediction file
+    with open(out_predictions_filename, 'w', encoding="utf8") as output_pred_f:
+        for tag in ans_list:
+            output_pred_f.write(tag + '\n')
+
+    # print(output_p)
+
+
 # def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
 #                     out_predictions_filename):
 
@@ -417,10 +577,10 @@ def count_lines(file):
 #         for line in in_test_f:
 #             if line.strip():
 
-        # pi_matrix = np.empty((sequence_length, num_hidden_states))
-        # bp = np.empty((sequence_length, num_hidden_states))
+    # pi_matrix = np.empty((sequence_length, num_hidden_states))
+    # bp = np.empty((sequence_length, num_hidden_states))
 
-        #################################### QUESTION 5 ###########################################
+    #################################### QUESTION 5 ###########################################
 
 
 def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
@@ -472,17 +632,18 @@ def run():
                    in_test_filename, naive_prediction_filename2)
     correct, total, acc = evaluate(naive_prediction_filename2, in_ans_filename)
     print(f'Naive prediction2 accuracy:    {correct}/{total} = {acc}')
-    '''
-    trans_probs_filename =  f'{ddir}/trans_probs.txt'
-    output_probs_filename = f'{ddir}/output_probs.txt'
 
-    in_tags_filename = f'{ddir}/twitter_tags.txt'
-    viterbi_predictions_filename = f'{ddir}/viterbi_predictions.txt'
+    trans_probs_filename = f'{ddir}\\trans_output_file.txt'
+    output_probs_filename = f'{ddir}\\output_probs.txt'
+
+    in_tags_filename = f'{ddir}\\twitter_tags.txt'
+    viterbi_predictions_filename = f'{ddir}\\viterbi_predictions.txt'
     viterbi_predict(in_tags_filename, trans_probs_filename, output_probs_filename, in_test_filename,
                     viterbi_predictions_filename)
-    correct, total, acc = evaluate(viterbi_predictions_filename, in_ans_filename)
+    correct, total, acc = evaluate(
+        viterbi_predictions_filename, in_ans_filename)
     print(f'Viterbi prediction accuracy:   {correct}/{total} = {acc}')
-
+    '''
     trans_probs_filename2 =  f'{ddir}/trans_probs2.txt'
     output_probs_filename2 = f'{ddir}/output_probs2.txt'
 
