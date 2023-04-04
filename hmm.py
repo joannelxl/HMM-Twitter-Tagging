@@ -104,7 +104,7 @@ def num_words(in_train_filename):
 
 def calc_output_prob(in_train_filename):
     output_probabilities = {}
-    DELTA = 0.1
+    DELTA = 0.001
     words = num_words(in_train_filename)
     tags_dict = count_tags(in_train_filename)
     tags_tokens_dict = count_tokens_tags(in_train_filename)
@@ -355,7 +355,7 @@ def transition_dic(file):
 
 
 def transition_probability(file):
-    DELTA = 0.1
+    DELTA = 10
     words = num_words(file)
     tag_count_dictionary = count_tags(file)
     transition_dictionary = transition_dic(file)
@@ -363,31 +363,62 @@ def transition_probability(file):
 
     text = "{} \t {} \t {} \n".format("Yt-1", "Yt", "Transition Probability")
     trans_output_file = 'trans_output_file.txt'
+
+    trans_sum_before_normalise = {}
+    trans_output_before_normalise = {}
+    # with open(trans_output_file, 'w', encoding="utf8") as trans_output_file:
+    # knowns
+    for tup, count in transition_dictionary.items():
+        start_state = tup[0]
+        next_state = tup[1]
+        if start_state == "START":
+            trans_prob = (count + DELTA) / \
+                (tweet_count + DELTA * (words + 1))
+        else:
+            count_yt_1 = tag_count_dictionary[start_state]
+            trans_prob = (count + DELTA) / \
+                (count_yt_1 + DELTA * (words + 1))
+
+        # adding to dictionary for normalising later
+        if start_state not in trans_sum_before_normalise:
+            trans_sum_before_normalise[start_state] = trans_prob
+        else:
+            trans_sum_before_normalise[start_state] += trans_prob
+
+        # adding to trans_output_before_normalise
+        trans_output_before_normalise[tup] = trans_prob
+
+        # text += "{} \t {} \t {} \n ".format(start_state,
+        #                                     next_state, trans_prob)
+        # unknown tokens
+    tags_seen = []
+    for tag in tag_count_dictionary.keys():
+        if tag not in tags_seen:
+            count_yt_1 = tag_count_dictionary[tag]
+            trans_prob = (DELTA) / (count_yt_1 + DELTA * (words + 1))
+
+            if tag not in trans_sum_before_normalise:
+                trans_sum_before_normalise[tag] = trans_prob
+            else:
+                trans_sum_before_normalise[tag] += trans_prob
+                # text += "{} \t {} \t {} \n ".format(tag,
+                #                                     "Unseen", trans_prob)
+            tags_seen += tag
+            trans_output_before_normalise[(tag, "Unseen")] = trans_prob
+    print(trans_sum_before_normalise)
+    print(trans_output_before_normalise)
     with open(trans_output_file, 'w', encoding="utf8") as trans_output_file:
-        # knowns
-        for tup, count in transition_dictionary.items():
+        for tup, prob in trans_output_before_normalise.items():
             start_state = tup[0]
             next_state = tup[1]
-            if start_state == "START":
-                trans_prob = (count + DELTA) / \
-                    (tweet_count + DELTA * (words + 1))
-            else:
-                count_yt_1 = tag_count_dictionary[start_state]
-                trans_prob = (count + DELTA) / \
-                    (count_yt_1 + DELTA * (words + 1))
+            final_prob = prob / trans_sum_before_normalise[start_state]
             text += "{} \t {} \t {} \n ".format(start_state,
-                                                next_state, trans_prob)
-        # unknowns
-        tags_seen = []
-        for tag in tag_count_dictionary.keys():
-            if tag not in tags_seen:
-                count_yt_1 = tag_count_dictionary[tag]
-                trans_prob = (DELTA) / (count_yt_1 + DELTA * (words + 1))
-                text += "{} \t {} \t {} \n ".format(tag,
-                                                    "Unseen", trans_prob)
-                tags_seen += tag
+                                                next_state, final_prob)
 
         trans_output_file.write(text)
+
+        # print(transition_probability)
+        # trans_output_file.write(text)
 
 
 ###############  OUTPUT_PROBABILITY ###################
@@ -432,8 +463,8 @@ def viterbi(observations, states, start_p, trans_p, emit_p, end_p):
 
     for t in range(1, len(observations)):
         V.append({})
+
         for st in states:
-            # print(states[0])
             if st not in trans_p[states[0]]:
                 max_tr_prob = V[t - 1][states[0]]["prob"] * \
                     trans_p[states[0]]['Unseen']
@@ -443,6 +474,7 @@ def viterbi(observations, states, start_p, trans_p, emit_p, end_p):
                     trans_p[states[0]][st]
 
             prev_st_selected = states[0]
+
             for prev_st in states[1:]:
                 if st not in trans_p[prev_st]:
                     tr_prob = V[t - 1][prev_st]["prob"] * \
@@ -461,6 +493,12 @@ def viterbi(observations, states, start_p, trans_p, emit_p, end_p):
                 max_prob = max_tr_prob * emit_p[st][observations[t]]
             V[t][st] = {"prob": max_prob, "prev": prev_st_selected}
 
+    # # to account for stop states:
+    # V.append({})
+    # for st in states:
+    #     max_tr_prob = V[-2][st]["prob"] * end_p[st]
+    #     V[-1][st] = {"prob": max_tr_prob, "prev": st}
+    # print(V[1]["@"])
     opt = []
     max_prob = 0.0
     best_st = None
@@ -527,8 +565,19 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
                     else:
                         trans_p[yt_1] = {}
                         trans_p[yt_1][yt] = probability
+    # print(trans_p["@"])
+    summing = 0
+    # print(len(unique_tag_list))
+    for tag in unique_tag_list:
+        for i in trans_p[tag].values():
+            summing += i
+        # print(tag)
+        # print(summing)
+        summing = 0
+
     # account for missing stop states:
     for tag in stop_state_list:
+        # print(trans_p[tag])
         end_p[tag] = trans_p[tag]["Unseen"]
 
     # make output_p dictionary
@@ -547,6 +596,10 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
                 else:
                     output_p[tag] = {}
                     output_p[tag][token] = probability
+
+    print(output_p["@"]["unseen_token_null"])
+
+    # print(output_p["@"])
 
     #### Do actual viterbi on each tweet ####
     with open(in_test_filename, encoding="utf8") as f:
@@ -597,7 +650,6 @@ def evaluate(in_prediction_filename, in_answer_filename):
     with open(in_answer_filename) as fin:
         ground_truth_tags = [l.strip()
                              for l in fin.readlines() if len(l.strip()) != 0]
-
     assert len(predicted_tags) == len(ground_truth_tags)
     correct = 0
     for pred, truth in zip(predicted_tags, ground_truth_tags):
