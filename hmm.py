@@ -104,7 +104,7 @@ def num_words(in_train_filename):
 
 def calc_output_prob(in_train_filename):
     output_probabilities = {}
-    DELTA = 0.001
+    DELTA = 0.1
     words = num_words(in_train_filename)
     tags_dict = count_tags(in_train_filename)
     tags_tokens_dict = count_tokens_tags(in_train_filename)
@@ -404,6 +404,7 @@ def transition_probability(file):
                 # text += "{} \t {} \t {} \n ".format(tag,
                 #                                     "Unseen", trans_prob)
             tags_seen += tag
+            trans_sum_before_normalise[tag] += trans_prob
             trans_output_before_normalise[(tag, "Unseen")] = trans_prob
     print(trans_sum_before_normalise)
     print(trans_output_before_normalise)
