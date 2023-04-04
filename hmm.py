@@ -92,7 +92,7 @@ def num_words(in_train_filename):
 # calculates naive output probabilities
 def calc_output_prob(in_train_filename):
     output_probabilities = {}
-    DELTA = 0.1
+    DELTA = 0.001
     words = num_words(in_train_filename)
     #tag and its count, number of times the tag appeared
     tags_dict = count_tags(in_train_filename)
@@ -246,6 +246,8 @@ def transition_tags(in_train_filename):
                 tags.append('END')
                 tags.append('START')
                 startCount += 1
+
+    print(tags)
          
     #print(startCount) Ans:1101    
     #dont consider the last one since its a false 'START'    
@@ -268,7 +270,7 @@ def count_tag_i(in_train_filename):
     freq = count_tags(in_train_filename)
     freq['START'] = 1101
     return freq
-print(count_tag_i("twitter_train.txt"))
+#print(count_tag_i("twitter_train.txt"))
 
 def calc_transition_prob(in_train_filename, out_prob_filename):
     #transition_probs = { transition=(i, j} : prob = num }
@@ -294,7 +296,6 @@ def calc_transition_prob(in_train_filename, out_prob_filename):
 
     dictCopy = transition_probs.copy()
 
-    
     for transition_tuple, prob in dictCopy.items():
         for i in all_tags:
             start_tag = transition_tuple[0]
@@ -306,14 +307,66 @@ def calc_transition_prob(in_train_filename, out_prob_filename):
                 den = tag_count[transition[0]] + DELTA * (word_count + 1)
                 prob = num/den
                 transition_probs[transition] = prob
-            else:
-                continue
     return transition_probs
             
+#print(calc_transition_prob("twitter_train.txt", "trans_probs.txt"))
 
-    print(transition_probs)
+def check_sum(trans_probs):
+    print(trans_probs)
+    temp = {}
+    for transition, prob in trans_probs.items():
+        if transition[0] in temp:
+            #print(prob)
+            temp[transition[0]] += prob
+        else:
+            temp[transition[0]] = prob
+    return temp
 
-print(calc_transition_prob("twitter_train.txt", "trans_probs.txt"))
+#print(check_sum(calc_transition_prob("twitter_train.txt", "trans_probs.txt")))
+            
+        
+
+#q4b initilise viterbi
+
+def calc_viterbi(tags, tweet, trans_probs, output_probs):
+    # for state 1 to N:
+    #  viterbi[1,s] <- initialProb * bj
+    #  backpointer <- 0
+
+    #compute initial probabilities for each tag
+    initial_probs = {}
+    for transition, prob in trans_probs.items():
+        tag_i = transition[0]
+        if tag_i == "START":
+            initial_probs[transition] = prob    
+
+
+    viterbi = []
+    for i in tweet:
+        #i represents a word in the tweet
+        for tag in tags:
+            #tag is a possible tag
+            if tweet.index(i) == 0:
+                transition = ('START', tag)
+                pi = trans_probs[transition]
+                viterbi.append(pi)
+            else:
+                index_of_prev_tag = tags.index(tag) - 1
+                prev_tag = tags[index_of_prev_tag]
+                transition = (prev_tag, tag)
+                if output_probs.get(i) is not None:
+                    if output_probs[i].get(tag) is not None:
+                        pi = output_probs[i][tag] * trans_probs[transition]
+                        viterbi.append(pi)
+                else:
+                    pi = output_probs['unseen_token_null'][tag] * trans_probs[transition]
+                    viterbi.append(pi)
+                
+    return viterbi
+            
+        
+    
+
 
 ################################# QUESTION 4A ################################
 transition_probabilities = calc_transition_prob("twitter_train.txt", "trans_probs.txt")
@@ -325,23 +378,37 @@ with open('trans_probs.txt', 'w', encoding="utf-8") as f:
 def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
                     out_predictions_filename):
     output_probs = convert_to_dict(in_output_probs_filename)
-    transition_probs = convert_to_dict(in_trans_probs_filename)
-
+    transition_probs = calc_transition_prob("twitter_train.txt", "trans_probs.txt")
     #read the tags
     tags = []
     with open(in_tags_filename, encoding = "utf-8") as f:
         for line in f:
             tags.append(line.strip())
-    print(tags)
 
     #read the tokens
     tokens = []
     with open(in_test_filename, encoding = "utf-8") as f:
         for line in f:
             tokens.append(line.strip())
-    #print(tokens)
 
+    #read the tweets
+    all_tweets = []
+    with open(in_test_filename, encoding = "utf-8") as f:
+        tweet = []
+        for line in f:
+            l = line.strip()
+            if l:
+                tweet.append(l)
+            else:
+                #once it encounters an empty line,
+                #append tweet to all tweets, then empty tweet again
+                all_tweets.append(tweet)
+                tweet = []
 
+    #iterate through all tweets, each time, calculate viterbi for it
+    for i in all_tweets:
+        return calc_viterbi(tags, i, transition_probs, output_probs)
+            
 #print(viterbi_predict("twitter_tags.txt", "trans_probs.txt", "output_probs.txt", "twitter_dev_no_tag.txt",
                     #"viterbi_predictions.txt"))
     
