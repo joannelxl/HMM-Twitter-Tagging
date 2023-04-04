@@ -366,7 +366,9 @@ def transition_probability(file):
 
     trans_sum_before_normalise = {}
     trans_output_before_normalise = {}
-    # with open(trans_output_file, 'w', encoding="utf8") as trans_output_file:
+
+    unk_count_per_tag = {}
+
     # knowns
     for tup, count in transition_dictionary.items():
         start_state = tup[0]
@@ -388,9 +390,13 @@ def transition_probability(file):
         # adding to trans_output_before_normalise
         trans_output_before_normalise[tup] = trans_prob
 
-        # text += "{} \t {} \t {} \n ".format(start_state,
-        #                                     next_state, trans_prob)
-        # unknown tokens
+        # adding to unk_count_per_tag for normalising
+        if start_state not in unk_count_per_tag:
+            unk_count_per_tag[start_state] = [next_state]
+        else:
+            unk_count_per_tag[start_state].append(next_state)
+    # print(len(tag_count_dictionary))
+    # unknown tokens
     tags_seen = []
     for tag in tag_count_dictionary.keys():
         if tag not in tags_seen:
@@ -398,16 +404,18 @@ def transition_probability(file):
             trans_prob = (DELTA) / (count_yt_1 + DELTA * (words + 1))
 
             if tag not in trans_sum_before_normalise:
-                trans_sum_before_normalise[tag] = trans_prob
+                num_unk = len(tag_count_dictionary) - \
+                    len(unk_count_per_tag[tag])
+                trans_sum_before_normalise[tag] = trans_prob * num_unk
             else:
-                trans_sum_before_normalise[tag] += trans_prob
-                # text += "{} \t {} \t {} \n ".format(tag,
-                #                                     "Unseen", trans_prob)
+                num_unk = len(tag_count_dictionary) - \
+                    len(unk_count_per_tag[tag])
+                trans_sum_before_normalise[tag] += trans_prob * num_unk
+
             tags_seen += tag
-            trans_sum_before_normalise[tag] += trans_prob
             trans_output_before_normalise[(tag, "Unseen")] = trans_prob
-    print(trans_sum_before_normalise)
-    print(trans_output_before_normalise)
+    # print(trans_sum_before_normalise)
+    # print(trans_output_before_normalise)
     with open(trans_output_file, 'w', encoding="utf8") as trans_output_file:
         for tup, prob in trans_output_before_normalise.items():
             start_state = tup[0]
