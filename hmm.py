@@ -355,7 +355,7 @@ def transition_dic(file):
 
 
 def transition_probability(file):
-    DELTA = 10
+    DELTA = 0.1
     words = num_words(file)
     tag_count_dictionary = count_tags(file)
     transition_dictionary = transition_dic(file)
