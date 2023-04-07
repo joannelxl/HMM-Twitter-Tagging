@@ -245,7 +245,7 @@ with open('output_probs.txt', 'w', encoding = "utf-8") as f:
 #numerator (count transition tags)
 
 #iterate through the train.txt file, compare current and next
-# freq = {transition = {i:j} : count = freq of this transition }
+# freq = {transition = (i:j) : count = freq of this transition }
 
 def transition_tags(in_train_filename):
     freq = {}
@@ -262,8 +262,6 @@ def transition_tags(in_train_filename):
                 tags.append('START')
                 startCount += 1
 
-    #print(tags)
-         
     #print(startCount) #Ans:1101    
     #dont consider the last one since its a false 'START'    
     for x in range(len(tags)-1):
@@ -276,9 +274,10 @@ def transition_tags(in_train_filename):
             freq[temp] = 1
 
     freq.pop(("END","START"))
+    #print(sum(freq.values())) #ans:16683
     return freq
 
-#print(transition_tags("twitter_train.txt"))
+print(transition_tags("twitter_train.txt"))
 
 #freq = {tag i:count}
 def count_tag_i(in_train_filename):
@@ -297,7 +296,7 @@ def calc_transition_prob(in_train_filename, out_prob_filename):
     transition_dict = transition_tags(in_train_filename)
     tag_count = count_tag_i(in_train_filename)
     all_tags = tags("twitter_tags.txt")
-    all_tags.append('START')
+    #all_tags.append('START')
     all_tags.append('END')
     DELTA = 0.1
        
@@ -322,30 +321,31 @@ def calc_transition_prob(in_train_filename, out_prob_filename):
             next_tag = transition_tuple[1]
             transition = (start_tag, i)
             #check if start tag --> all other tags exist
-            if transition not in transition_probs:
-                num = DELTA
-                den = tag_count[transition[0]] + DELTA * (word_count + 1)
-                prob = num/den
-                transition_probs[transition] = prob
+            if (transition != ('START', 'END')):
+                if transition not in transition_probs:
+                    num = DELTA
+                    den = tag_count[transition[0]] + DELTA * (word_count + 1)
+                    prob = num/den
+                    transition_probs[transition] = prob
     #return transition_probs
 
 
     #normalise
-
+    
+    
     sum_dict = count_transition_sum(transition_probs)
     
     for transition_tuple, prob in transition_probs.items():
         start_tag = transition_tuple[0]
-        for i in sum_dict:
+        for i in sum_dict.keys():
             if (start_tag == i):
                 prob_before_normalising = transition_probs[transition_tuple]
                 prob_after_normalising = prob_before_normalising / sum_dict[i]
                 transition_probs[transition_tuple] = prob_after_normalising
     return transition_probs
     
-                
-            
-        
+
+    
 
 def count_transition_sum(trans_probs):
     #print(trans_probs)
@@ -356,7 +356,7 @@ def count_transition_sum(trans_probs):
             temp[transition[0]] += prob
         else:
             temp[transition[0]] = prob
-    return temp
+    return(temp)
 
 #print(count_transition_sum(calc_transition_prob("twitter_train.txt", "trans_probs.txt")))
             
@@ -378,6 +378,7 @@ def calc_viterbi(tags, transition_probs, output_probs, tweet):
                     pi = transition_probs['START', tag] * output_probs[word][tag]
                     if (word_num not in pi_and_bp): 
                         pi_and_bp[word_num] = {}
+                        #key: pi, value: bp
                         pi_and_bp[word_num][tag] = [pi,'START']
                     else:
                         pi_and_bp[word_num][tag] = [pi,'START']
@@ -446,17 +447,17 @@ def calc_viterbi(tags, transition_probs, output_probs, tweet):
         for tag, pi_bp in sorted_pi_and_bp[i].items():
             if (tag == allBackPointers[i]):
                 newBP = pi_bp[1]
-                backPointer = newBP
                 #append curr tag to allBackPointers
-                allBackPointers[i-1] = backPointer
+                temp = i-1
+                allBackPointers[i-1] = newBP
 
     sequence = []
     allBackPointers = dict(sorted(allBackPointers.items()))
 
     for i in allBackPointers:
+        #check that it is not the 'START' bp
         if (i != 0):
             sequence.append(allBackPointers[i])
-
     return(sequence)
 
 
