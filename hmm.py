@@ -224,13 +224,13 @@ def count_transition_tags(train_filename):
     next_line = f.readline().strip().split()
     counter = 0
     transition_dict["START"][line[1]] += 1
-    while next_line:
+    while (line):
         tag = line[1]
-        next_tag = next_line[1]
-        
+        if (next_line == []):
+            next_tag = "END"
+        else:
+            next_tag = next_line[1]
         if (tag in transition_dict.keys()):
-            if (next_line == []):
-                next_tag = "END"
             if (next_tag in transition_dict[tag].keys()):
                 transition_dict[tag][next_tag] += 1
             else:
@@ -240,18 +240,22 @@ def count_transition_tags(train_filename):
             transition_dict[tag][next_tag] = 1
         line = next_line
         next_line = f.readline().strip().split()
-        if (next_line == []):
-            # need to indicate that the tweet ended
-            # transition_dict[line[1]]["END"] += 1
+        if (line == []):
+            line = next_line
             next_line = f.readline().strip().split()
-            # and also need to indicate that another tweet has started
-            if (next_line != []):
-                transition_dict["START"][next_line[1]] += 1
-    # counter: 16682
-    # sum of values in dictionary: 17783
+            if (line != []):
+                transition_dict["START"][line[1]] += 1
+                
+        if (next_line == []):
+            transition_dict[next_tag]["END"] += 1
+            line = f.readline().strip().split()
+            next_line = f.readline().strip().split()
+            if (line != []):
+                transition_dict["START"][line[1]] += 1
+                
     return transition_dict
 
-# print(count_transition_tags("twitter_train.txt"))
+print(count_transition_tags("twitter_train.txt"))
 
 # to count tags, count_tags(in_train_filename)
 
@@ -281,7 +285,7 @@ def count_tags_with_start(in_train_filename):
 
 # function to calculate transition prob
 def transition_prob(train_filename):
-    DELTA = 0.0001
+    DELTA = 0.1
     transition_dict = count_transition_tags(train_filename)
     tag_dict = count_tags(train_filename)
     tag_dict_start = count_tags_with_start(train_filename)
@@ -298,7 +302,8 @@ def transition_prob(train_filename):
             count = v
             #print(f'[{key}:{k} count: {count}]')
             # prob = (count) / tag_dict_start[key]
-            prob = (count + DELTA) / (tag_dict_start[key] + DELTA * (num_words + 1))
+            prob = (count + DELTA) / (sum(transition_dict[key].values()) + DELTA * (5763 + 1))
+            #  prob = (count + DELTA) / (tag_dict_start[key] + DELTA * (5763 + 1))
             if (key in transition_dict_prob.keys()):
                 transition_dict_prob[key][k] = prob
                 transition_dict_count[key][k] = count
@@ -312,7 +317,7 @@ def transition_prob(train_filename):
     for key1 in tag_dict:
         for key2 in tag_dict:
             if key2 not in transition_dict_prob[key1].keys():
-                prob = (0 + DELTA) / (tag_dict_start[key1] + DELTA * (num_words + 1))
+                prob = (0 + DELTA) / (tag_dict_start[key1] + DELTA * (5763 + 1))
                 if (key1 in transition_dict_prob.keys()):
                     transition_dict_prob[key1][key2] = prob
                 else:
@@ -331,11 +336,15 @@ def transition_prob(train_filename):
         for (tag2, p) in transition_dict_prob[tag1].items():
             transition_dict_prob[tag1][tag2] = p * (1 / sum_prob[tag1])
             f.write(f'{tag1}\t\t{tag2}\t\t{transition_dict_prob[tag1][tag2]}\n')
+    for key in transition_dict_prob.keys():
+        sum_prob[key] = sum(transition_dict_prob[key].values())
+        sum_count[key] = sum(transition_dict_count[key].values())
+    # print(sum_prob)
     # print(sum_count)
     # print(f'sum from transition: {sum(sum_count.values())}')
     return transition_dict_prob
 
-#print(transition_prob("twitter_train.txt"))
+# print(transition_prob("twitter_train.txt"))
 
 def calculate_sum():
     f = open("trans_probs.txt", "r")
@@ -403,6 +412,18 @@ def viterbi(observations, tag_list, transition_dict_prob, output_prob):
             V[counter][tag] = {"prob": max_prob, "prev": prev_tag_selected}
         counter += 1
     
+    # V.append({})
+    # for tag in tag_list:
+    #     max_trans_prob = V[counter - 1][tag_list[0]]["prob"] * transition_dict_prob[tag_list[0]]["END"]
+    #     prev_tag_selected = tag_list[0]
+    #     for prev_tag in tag_list[1:]:
+    #         tr_prob = V[counter - 1][prev_tag]["prob"] * transition_dict_prob[prev_tag]["END"]
+    #         if tr_prob > max_trans_prob:
+    #             max_trans_prob = tr_prob
+    #             prev_tag_selected = prev_tag
+        
+    #     V[counter][tag] = {"prob": max_trans_prob, "prev": prev_tag_selected}
+    
     opt = []
     max_prob = 0.0
     best_tag = None
@@ -417,7 +438,7 @@ def viterbi(observations, tag_list, transition_dict_prob, output_prob):
     for t in range(len(V) - 2, -1 , -1):
         opt.insert(0, V[t+1][previous]["prev"])
         previous = V[t+1][previous]["prev"]
-
+    # opt.pop()
     return opt
 
 def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
@@ -442,15 +463,71 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
             for elem in opt:
                 f.write(f'{elem}\n')
             observations.clear()
+        
+################################### QUESTION 4B #####################################
+# The accuracy of our prediction is 75.1% (3 s.f.), where the number of correctly 
+# predicted tags / number of predictions is 1035/1378.
     
 
-#print(viterbi_predict("twitter_tags.txt", "trans_probs.txt", "output_probs.txt", "twitter_dev_no_tag.txt","viterbi_predictions.txt"))
+# to try to increase accuracy of prediction, we shall try to convert everything to lowercase.
+# convert train file to lower case
+
+def convert_train_file_to_lowercase(train_filename):
+    f = open(train_filename, "r")
+    nf = open("twitter_train_lower.txt", "w")
+    line = f.readline().strip().split()
+    while line:
+        word = line[0].lower()
+        tag = line[1]
+        nf.write(f'{word}\t{tag}\n')
+        line = f.readline().strip().split()
+        if (line == []):
+            nf.write('\n')
+            line = f.readline().strip().split()
+
+convert_train_file_to_lowercase("twitter_train.txt")
+
+def convert_test_file_to_lowercase(test_filename):
+    f = open(test_filename, "r")
+    nf = open("twitter_dev_no_tag_lower.txt", "w")
+    line = f.readline().strip()
+    while line:
+        word = line.lower()
+        nf.write(f'{word}\n')
+        line = f.readline().strip()
+        if (line == ""):
+            nf.write('\n')
+            line = f.readline().strip()
+
+convert_test_file_to_lowercase("twitter_dev_no_tag.txt")
+
 
 def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
                      out_predictions_filename):
-    pass
+    # viterbi_predict("twitter_tags.txt", "trans_probs.txt", "output_probs.txt", "twitter_dev_no_tag.txt", 
+    #                 "viterbi_predictions.txt")
+    # observations are the words, while hidden states are the tags
+    train_filename = "twitter_train_lower.txt"
+    tag_list = tags(in_tags_filename) # all the possible tags
+    transition_dict_prob = transition_prob(train_filename) # getting all the transition probabilities
+    output_prob = calc_output_prob(train_filename)  # getting all the ouptut probabilities
+    test_file = open("twitter_dev_no_tag_lower.txt", "r")
+    f = open("viterbi_predictions2.txt", "w")
+    observations = []
+    line = test_file.readline().strip()
+    while line:
+        observations.append(line)
+        line = test_file.readline().strip()
+        if (line == ""):
+            line = test_file.readline().strip()
+            opt = viterbi(observations, tag_list, transition_dict_prob, output_prob)
+            for elem in opt:
+                f.write(f'{elem}\n')
+            observations.clear()
 
-
+################################### QUESTION 4B #####################################
+# The accuracy of our prediction is 77.4% (3 s.f.), where the number of correctly 
+# predicted tags / number of predictions is 1066/1378.
 
 
 def evaluate(in_prediction_filename, in_answer_filename):
@@ -506,16 +583,16 @@ def run():
     correct, total, acc = evaluate(viterbi_predictions_filename, in_ans_filename)
     print(f'Viterbi prediction accuracy:   {correct}/{total} = {acc}')
     
-    '''
-    trans_probs_filename2 =  f'{ddir}/trans_probs2.txt'
-    output_probs_filename2 = f'{ddir}/output_probs2.txt'
+    
+    trans_probs_filename2 =  f'{ddir}trans_probs2.txt'
+    output_probs_filename2 = f'{ddir}output_probs2.txt'
 
-    viterbi_predictions_filename2 = f'{ddir}/viterbi_predictions2.txt'
+    viterbi_predictions_filename2 = f'{ddir}viterbi_predictions2.txt'
     viterbi_predict2(in_tags_filename, trans_probs_filename2, output_probs_filename2, in_test_filename,
                      viterbi_predictions_filename2)
     correct, total, acc = evaluate(viterbi_predictions_filename2, in_ans_filename)
     print(f'Viterbi2 prediction accuracy:  {correct}/{total} = {acc}') 
-    '''
+    
     
 
 
