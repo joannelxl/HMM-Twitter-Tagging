@@ -307,7 +307,7 @@ def transition_prob(train_filename):
                 transition_dict_prob[key][k] = prob
                 transition_dict_count[key] = {}
                 transition_dict_count[key][k] = count
-            f.write(f'{key}\t\t{k}\t\t{prob}\n')
+            # f.write(f'{key}\t\t{k}\t\t{prob}\n')
     # unknown_dict = {}
     for key1 in tag_dict:
         for key2 in tag_dict:
@@ -318,7 +318,7 @@ def transition_prob(train_filename):
                 else:
                     transition_dict_prob[key1] = {}
                     transition_dict_prob[key1][key2] = prob
-                f.write(f'{key1}\t\t{key2}\t\t{prob}\n')
+                # f.write(f'{key1}\t\t{key2}\t\t{prob}\n')
     # for (key, value) in tag_dict
     #print(f'tag_dict: {tag_dict}')
     sum_prob = {}
@@ -326,9 +326,13 @@ def transition_prob(train_filename):
     for key in transition_dict_prob.keys():
         sum_prob[key] = sum(transition_dict_prob[key].values())
         sum_count[key] = sum(transition_dict_count[key].values())
-    print(sum_prob)
-    #print(sum_count)
-    #print(f'sum from transition: {sum(sum_count.values())}')
+    # print(sum_prob)
+    for (tag1) in transition_dict_prob.keys():
+        for (tag2, p) in transition_dict_prob[tag1].items():
+            transition_dict_prob[tag1][tag2] = p * (1 / sum_prob[tag1])
+            f.write(f'{tag1}\t\t{tag2}\t\t{transition_dict_prob[tag1][tag2]}\n')
+    # print(sum_count)
+    # print(f'sum from transition: {sum(sum_count.values())}')
     return transition_dict_prob
 
 #print(transition_prob("twitter_train.txt"))
