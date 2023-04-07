@@ -187,6 +187,10 @@ def calc_transition_prob(in_train_filename, in_tags_filename):
     DELTA = 0.1
     words = num_words(in_train_filename)
     transition_dict = count_transition_tags(in_train_filename)
+    trans_count = 0
+    for i, v in transition_dict.items():
+        trans_count += sum(v.values())
+    print(trans_count)
     tags_list = tags(in_tags_filename)
 
     # e.g. {yt-1 = i1:{yt = j1: trans, yt = j2:trans}, yt-1 = i2:{yt = j1: trans, yt = j2:trans}}
@@ -216,13 +220,15 @@ def calc_transition_prob(in_train_filename, in_tags_filename):
             trans_probabilities[i]["STOP"] = num / den
 
     # normalisation
-    
+
     sum_dict = {}
     for i in trans_probabilities:
         sum_dict[i] = sum(trans_probabilities[i].values())  
     for i, trans_probs in trans_probabilities.items():
         for j, trans_prob in trans_probs.items():
             trans_probabilities[i][j] = trans_prob/sum_dict[i]
+    print(sum_dict)
+
     return trans_probabilities
 
 
