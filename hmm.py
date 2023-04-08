@@ -317,7 +317,7 @@ def transition_prob(train_filename):
     for key1 in tag_dict:
         for key2 in tag_dict:
             if key2 not in transition_dict_prob[key1].keys():
-                prob = (0 + DELTA) / (tag_dict_start[key1] + DELTA * (5763 + 1))
+                prob = (0 + DELTA) / (tag_dict_start[key1] + DELTA * (16683 + 1))
                 if (key1 in transition_dict_prob.keys()):
                     transition_dict_prob[key1][key2] = prob
                 else:
@@ -412,17 +412,17 @@ def viterbi(observations, tag_list, transition_dict_prob, output_prob):
             V[counter][tag] = {"prob": max_prob, "prev": prev_tag_selected}
         counter += 1
     
-    # V.append({})
-    # for tag in tag_list:
-    #     max_trans_prob = V[counter - 1][tag_list[0]]["prob"] * transition_dict_prob[tag_list[0]]["END"]
-    #     prev_tag_selected = tag_list[0]
-    #     for prev_tag in tag_list[1:]:
-    #         tr_prob = V[counter - 1][prev_tag]["prob"] * transition_dict_prob[prev_tag]["END"]
-    #         if tr_prob > max_trans_prob:
-    #             max_trans_prob = tr_prob
-    #             prev_tag_selected = prev_tag
+    V.append({})
+    for tag in tag_list:
+        max_trans_prob = V[counter - 1][tag_list[0]]["prob"] * transition_dict_prob[tag_list[0]]["END"]
+        prev_tag_selected = tag_list[0]
+        for prev_tag in tag_list[1:]:
+            tr_prob = V[counter - 1][prev_tag]["prob"] * transition_dict_prob[prev_tag]["END"]
+            if tr_prob > max_trans_prob:
+                max_trans_prob = tr_prob
+                prev_tag_selected = prev_tag
         
-    #     V[counter][tag] = {"prob": max_trans_prob, "prev": prev_tag_selected}
+        V[counter][tag] = {"prob": max_trans_prob, "prev": prev_tag_selected}
     
     opt = []
     max_prob = 0.0
@@ -438,7 +438,8 @@ def viterbi(observations, tag_list, transition_dict_prob, output_prob):
     for t in range(len(V) - 2, -1 , -1):
         opt.insert(0, V[t+1][previous]["prev"])
         previous = V[t+1][previous]["prev"]
-    # opt.pop()
+    
+    opt.pop()
     return opt
 
 def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
