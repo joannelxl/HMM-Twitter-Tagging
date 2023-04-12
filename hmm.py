@@ -564,6 +564,26 @@ def viterbi2(observations, tag_list, transition_dict_prob, output_prob):
                 V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob[observations[counter]][tag], "bp": None}
             # if not, use the unseen_token_null
             else:
+                # if (len(observations[counter]) > 0 and observations[counter][0] == "@"):
+                #     if (tag == "@"):
+                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
+                #     else:
+                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
+                # elif (observations[counter][0].isdigit()):
+                #     if (tag == "$"):
+                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
+                #     else:
+                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
+                # elif (observations[counter][0] == "#"):
+                #     if (tag == "#"):
+                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
+                #     else:
+                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
+                # elif (observations[counter][0:6] == "http://" or observations[counter][0:3] == "www."):
+                #     if (tag == "U"):
+                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
+                # else:
+                #     V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
                 V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob["unseen_token_null"][tag], "bp": None}
     
     counter += 1
@@ -608,6 +628,26 @@ def viterbi2(observations, tag_list, transition_dict_prob, output_prob):
                     max_prob = max_trans_prob * output_prob[observations[counter]][tag]
                 # if not, use the unseen_token_null
                 else:
+                    # if (len(observations[counter]) > 0 and observations[counter][0] == "@"):
+                    #     if (tag == "@"):
+                    #         max_prob = max_trans_prob * 1
+                    #     else:
+                    #         max_prob = max_trans_prob * 0
+                    # elif (observations[counter][0].isdigit()):
+                    #     if (tag == "$"):
+                    #         max_prob = max_trans_prob * 1
+                    #     else:
+                    #         max_prob = max_trans_prob * 0
+                    # elif (observations[counter][0] == "#"):
+                    #     if (tag == "#"):
+                    #         max_prob = max_trans_prob * 1
+                    #     else:
+                    #         max_prob = max_trans_prob * 0
+                    # elif (observations[counter][0:6] == "http://" or observations[counter][0:3] == "www."):
+                    #     if (tag == "U"):
+                    #         max_prob = max_trans_prob * 1
+                    #     else:
+                    #         max_prob = max_trans_prob * 0
                     max_prob = max_trans_prob * output_prob["unseen_token_null"][tag]
             # logging prob and backpointer to V
             V[counter][tag] = {"prob": max_prob, "bp": prev_tag_selected}
