@@ -636,13 +636,13 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
     step = 1
     for num in range(1, len(testWords)):
         if (testWords[num-1] == " "):
+            
             pi[step] = {}
             bp[step] = {}
             
             for tag in tags_list:
                 if (testWords[num][0:6] == "@user_"):
                     if (tag == "@"):
-                        
                         pi[step][tag] = trans_dict["START"][tag] * 1
                     else:
                         pi[step][tag] = trans_dict["START"][tag] * 0
@@ -691,20 +691,19 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
                 for i, prev_prob in pi[prev].items():
                     if (testWords[num][0:6] == "@user_"):
                         if (j == "@"):
-                            temp[i] = trans_dict[i][j] * 1
+                            temp[i] = prev_prob * trans_dict[i][j] * 1
                         else:
                             temp[i] = trans_dict[i][j] * 0
                     elif (testWords[num][0:4] == "http" or testWords[num][0:4] == "www."):
                         if (j == "U"):
-                            temp[i] = trans_dict[i][j] * 1
+                            temp[i] = prev_prob * trans_dict[i][j] * 1
                         else:
-                            temp[i] = trans_dict[i][j] * 0
+                            temp[i] = prev_prob * trans_dict[i][j] * 0
                     else:
                         if (testWords[num] in output_dict):
                             temp[i] = prev_prob * trans_dict[i][j] * output_dict[testWords[num]][j]
                         else:
                             temp[i] = prev_prob * trans_dict[i][j] * output_dict["unseen_token_null"][j]
-                
                 pi[step][j] = max(temp.values())
                 bp[step][j] = max(temp, key=temp.get)
 
