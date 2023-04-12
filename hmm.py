@@ -255,7 +255,7 @@ def count_transition_tags(train_filename):
                 
     return transition_dict
 
-print(count_transition_tags("twitter_train.txt"))
+# print(count_transition_tags("twitter_train.txt"))
 
 # to count tags, count_tags(in_train_filename)
 
@@ -383,52 +383,74 @@ def output_prob(train_filename):
 # print(output_prob("twitter_train.txt"))
 
 def viterbi(observations, tag_list, transition_dict_prob, output_prob):
-    V = [{}]
+    V = []
+    # will be using a list to keep all the values for Viterbi Algorithm
+    V.append({})
+    # the dictionary within V will be for each step
+    num_observations = len(observations)
     # output_prob
     # {word1: {tag1: prob1, tag2: prob}, word2: {tag1: prob1, ...}}
     # transition_dict_prob
     # {tag1: {tag1: prob1, tag2: prob2, ...}, tag2: {tag1: prob1, tag2: prob2, ...}}
     counter = 0
+    # looping through the tags to get the start probabilities
     for tag in tag_list:
+        # logging the probabilities and the backpointer. backpointer is null since this is the first step
+        # if the word has been seen and the tag exists for the word
         if (observations[counter] in output_prob.keys() and tag in output_prob[observations[counter]].keys()):
-            V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob[observations[counter]][tag], "prev": None}
+            V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob[observations[counter]][tag], "bp": None}
+        # if not, use the unseen_token_null
         else:
-            V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob["unseen_token_null"][tag], "prev": None}
+            V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob["unseen_token_null"][tag], "bp": None}
+    
     counter += 1
-    for i in range(1, len(observations)):
+    
+    while (counter < num_observations):
+        # adding another dictionary to log data for the next iteration
         V.append({})
+        # looping through the tags to get the probabilities and doing a comparison to get the max prob.
         for tag in tag_list:
             max_trans_prob = V[counter - 1][tag_list[0]]["prob"] * transition_dict_prob[tag_list[0]][tag]
             prev_tag_selected = tag_list[0]
             for prev_tag in tag_list[1:]:
+                # if another tag results in a higher probability, replace max_trans_prob and prev_tag_selected
                 tr_prob = V[counter - 1][prev_tag]["prob"] * transition_dict_prob[prev_tag][tag]
                 if tr_prob > max_trans_prob:
                     max_trans_prob = tr_prob
                     prev_tag_selected = prev_tag
+            # after getting the max_trans_prob and prev_tag_selected, we need to get the max_prob
+            # if the word has been seen and the tag exists for the word
             if (observations[counter] in output_prob.keys() and tag in output_prob[observations[counter]].keys()):
                 max_prob = max_trans_prob * output_prob[observations[counter]][tag]
+            # if not, use the unseen_token_null
             else:
                 max_prob = max_trans_prob * output_prob["unseen_token_null"][tag]
-            V[counter][tag] = {"prob": max_prob, "prev": prev_tag_selected}
+            # logging prob and backpointer to V
+            V[counter][tag] = {"prob": max_prob, "bp": prev_tag_selected}
         counter += 1
     
+    # from last observation to stop state
+    # adding another dictionary to log data
     V.append({})
+    # looping through the tags to get the probabilities and doing a comparison to get the max prob.
     for tag in tag_list:
         max_trans_prob = V[counter - 1][tag_list[0]]["prob"] * transition_dict_prob[tag_list[0]]["END"]
         prev_tag_selected = tag_list[0]
+        # if another tag results in a higher probability, replace max_trans_prob and prev_tag_selected
         for prev_tag in tag_list[1:]:
             tr_prob = V[counter - 1][prev_tag]["prob"] * transition_dict_prob[prev_tag]["END"]
             if tr_prob > max_trans_prob:
                 max_trans_prob = tr_prob
                 prev_tag_selected = prev_tag
         
-        V[counter][tag] = {"prob": max_trans_prob, "prev": prev_tag_selected}
+        V[counter][tag] = {"prob": max_trans_prob, "bp": prev_tag_selected}
     
     opt = []
     max_prob = 0.0
     best_tag = None
 
-    for tag, data in V[-1].items():
+    # working backwards
+    for tag, data in V[-1].items():  # data is a dict that has 2 components - prob and bp
         if data["prob"] > max_prob:
             max_prob = data["prob"]
             best_tag = tag
@@ -436,8 +458,8 @@ def viterbi(observations, tag_list, transition_dict_prob, output_prob):
     previous = best_tag
 
     for t in range(len(V) - 2, -1 , -1):
-        opt.insert(0, V[t+1][previous]["prev"])
-        previous = V[t+1][previous]["prev"]
+        opt.insert(0, V[t+1][previous]["bp"])
+        previous = V[t+1][previous]["bp"]
     
     opt.pop()
     return opt
@@ -502,6 +524,130 @@ def convert_test_file_to_lowercase(test_filename):
 
 convert_test_file_to_lowercase("twitter_dev_no_tag.txt")
 
+def viterbi2(observations, tag_list, transition_dict_prob, output_prob):
+    V = []
+    # will be using a list to keep all the values for Viterbi Algorithm
+    V.append({})
+    # the dictionary within V will be for each step
+    num_observations = len(observations)
+    # output_prob
+    # {word1: {tag1: prob1, tag2: prob}, word2: {tag1: prob1, ...}}
+    # transition_dict_prob
+    # {tag1: {tag1: prob1, tag2: prob2, ...}, tag2: {tag1: prob1, tag2: prob2, ...}}
+    counter = 0
+    # looping through the tags to get the start probabilities
+    for tag in tag_list:
+        # logging the probabilities and the backpointer. backpointer is null since this is the first step
+        # if the word has been seen and the tag exists for the word
+        if (len(observations[counter]) > 0 and observations[counter][0] == "@"):
+            if (tag == "@"):
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
+            else:
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
+        elif (observations[counter][0].isdigit()):
+            if (tag == "$"):
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
+            else:
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
+        elif (observations[counter][0] == "#"):
+            if (tag == "#"):
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
+            else:
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
+        elif (observations[counter][0:6] == "http://" or observations[counter][0:3] == "www."):
+            if (tag == "U"):
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
+            else:
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
+        else:
+            if (observations[counter] in output_prob.keys() and tag in output_prob[observations[counter]].keys()):
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob[observations[counter]][tag], "bp": None}
+            # if not, use the unseen_token_null
+            else:
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob["unseen_token_null"][tag], "bp": None}
+    
+    counter += 1
+    
+    while (counter < num_observations):
+        # adding another dictionary to log data for the next iteration
+        V.append({})
+        # looping through the tags to get the probabilities and doing a comparison to get the max prob.
+        for tag in tag_list:
+            max_trans_prob = V[counter - 1][tag_list[0]]["prob"] * transition_dict_prob[tag_list[0]][tag]
+            prev_tag_selected = tag_list[0]
+            for prev_tag in tag_list[1:]:
+                # if another tag results in a higher probability, replace max_trans_prob and prev_tag_selected
+                tr_prob = V[counter - 1][prev_tag]["prob"] * transition_dict_prob[prev_tag][tag]
+                if tr_prob > max_trans_prob:
+                    max_trans_prob = tr_prob
+                    prev_tag_selected = prev_tag
+            # after getting the max_trans_prob and prev_tag_selected, we need to get the max_prob
+            # if the word has been seen and the tag exists for the word
+            if (len(observations[counter]) > 0 and observations[counter][0] == "@"):
+                if (tag == "@"):
+                    max_prob = max_trans_prob * 1
+                else:
+                    max_prob = max_trans_prob * 0
+            elif (observations[counter][0].isdigit()):
+                if (tag == "$"):
+                    max_prob = max_trans_prob * 1
+                else:
+                    max_prob = max_trans_prob * 0
+            elif (observations[counter][0] == "#"):
+                if (tag == "#"):
+                    max_prob = max_trans_prob * 1
+                else:
+                    max_prob = max_trans_prob * 0
+            elif (observations[counter][0:6] == "http://" or observations[counter][0:3] == "www."):
+                if (tag == "U"):
+                    max_prob = max_trans_prob * 1
+                else:
+                    max_prob = max_trans_prob * 0
+            else:
+                if (observations[counter] in output_prob.keys() and tag in output_prob[observations[counter]].keys()):
+                    max_prob = max_trans_prob * output_prob[observations[counter]][tag]
+                # if not, use the unseen_token_null
+                else:
+                    max_prob = max_trans_prob * output_prob["unseen_token_null"][tag]
+            # logging prob and backpointer to V
+            V[counter][tag] = {"prob": max_prob, "bp": prev_tag_selected}
+        counter += 1
+    
+    # from last observation to stop state
+    # adding another dictionary to log data
+    V.append({})
+    # looping through the tags to get the probabilities and doing a comparison to get the max prob.
+    for tag in tag_list:
+        max_trans_prob = V[counter - 1][tag_list[0]]["prob"] * transition_dict_prob[tag_list[0]]["END"]
+        prev_tag_selected = tag_list[0]
+        # if another tag results in a higher probability, replace max_trans_prob and prev_tag_selected
+        for prev_tag in tag_list[1:]:
+            tr_prob = V[counter - 1][prev_tag]["prob"] * transition_dict_prob[prev_tag]["END"]
+            if tr_prob > max_trans_prob:
+                max_trans_prob = tr_prob
+                prev_tag_selected = prev_tag
+        
+        V[counter][tag] = {"prob": max_trans_prob, "bp": prev_tag_selected}
+    
+    opt = []
+    max_prob = 0.0
+    best_tag = None
+
+    # working backwards
+    for tag, data in V[-1].items():  # data is a dict that has 2 components - prob and bp
+        if data["prob"] > max_prob:
+            max_prob = data["prob"]
+            best_tag = tag
+    opt.append(best_tag)
+    previous = best_tag
+
+    for t in range(len(V) - 2, -1 , -1):
+        opt.insert(0, V[t+1][previous]["bp"])
+        previous = V[t+1][previous]["bp"]
+    
+    opt.pop()
+    return opt
+
 
 def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
                      out_predictions_filename):
@@ -521,7 +667,7 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
         line = test_file.readline().strip()
         if (line == ""):
             line = test_file.readline().strip()
-            opt = viterbi(observations, tag_list, transition_dict_prob, output_prob)
+            opt = viterbi2(observations, tag_list, transition_dict_prob, output_prob)
             for elem in opt:
                 f.write(f'{elem}\n')
             observations.clear()
