@@ -6,6 +6,7 @@
 
 # Implement the six functions below
 
+DELTA = 0.1
 ##################### HELPER FUNCTIONS #######################
 
 # placing possible tags into a list
@@ -89,7 +90,7 @@ def num_words(in_train_filename):
 # calculates naive output probabilities
 def calc_output_prob(in_train_filename):
     output_probabilities = {}
-    DELTA = 0.1
+    # DELTA = 0.1
     words = num_words(in_train_filename)
     tags_dict = count_tags(in_train_filename)
     tags_tokens_dict = count_tokens_tags(in_train_filename)
@@ -285,11 +286,11 @@ def count_tags_with_start(in_train_filename):
 
 # function to calculate transition prob
 def transition_prob(train_filename):
-    DELTA = 0.1
+    # DELTA = 0.1
     transition_dict = count_transition_tags(train_filename)
     tag_dict = count_tags(train_filename)
     tag_dict_start = count_tags_with_start(train_filename)
-    num_words = sum(tag_dict_start.values())
+    # num_words = sum(tag_dict_start.values())
     # num_words = sum(tag_dict.values())
     # print(num_words)
     # to confirm!! what is num_words??
@@ -302,7 +303,7 @@ def transition_prob(train_filename):
             count = v
             #print(f'[{key}:{k} count: {count}]')
             # prob = (count) / tag_dict_start[key]
-            prob = (count + DELTA) / (sum(transition_dict[key].values()) + DELTA * (5763 + 1))
+            prob = (count + DELTA) / (sum(transition_dict[key].values()) + DELTA * (16683 + 1))
             #  prob = (count + DELTA) / (tag_dict_start[key] + DELTA * (5763 + 1))
             if (key in transition_dict_prob.keys()):
                 transition_dict_prob[key][k] = prob
@@ -370,7 +371,7 @@ def calculate_sum():
 
 def output_prob(train_filename):
     output_probabilities = calc_output_prob(train_filename)
-    DELTA = 0.1
+    # DELTA = 0.1
     f = open("output_probs.txt", "w")
     tag_dict = count_tags(train_filename)
     num_words = sum(tag_dict.values())
@@ -524,12 +525,107 @@ def convert_test_file_to_lowercase(test_filename):
 
 convert_test_file_to_lowercase("twitter_dev_no_tag.txt")
 
-def viterbi2(observations, tag_list, transition_dict_prob, output_prob):
+def count_tokens_lower(in_train_filename):
+    freqs = {}
+    with open(in_train_filename, encoding="utf8") as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0].lower()
+                if token in freqs:
+                    freqs[token] += 1
+                else:
+                    freqs[token] = 1
+    return freqs
+
+def count_tags_tokens_lower(in_train_filename):
+    freqs = {}
+    with open(in_train_filename, encoding="utf8") as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0].lower()
+                tag = temp_list[1]
+
+                if token in freqs:
+                    tag_tokens = freqs[token]
+                    if tag in tag_tokens:
+                        tag_tokens[tag] += 1
+                    else:
+                        tag_tokens[tag] = 1
+                else:
+                    freqs[token] = {}
+                    tag_tokens = freqs[token]
+                    tag_tokens[tag] = 1
+    return freqs
+
+def calc_output_prob_lower(in_train_filename):
+    output_probabilities = {}
+    # DELTA = 0.1
+    words = num_words(in_train_filename)
+    tags_dict = count_tags(in_train_filename)
+    tags_tokens_dict = count_tokens_tags(in_train_filename)
+    tags_list = tags("twitter_tags.txt")
+    count_token_dic = count_tokens_lower(in_train_filename)
+    token_tag_dict = count_tags_tokens_lower(in_train_filename)
+    # print(token_tag_dict)
+
+    output_probabilities["unseen_token_null"] = {}
+
+    # {tag:count}
+    hapax_count_per_tag = {}
+    total_hapax_count = 0
+    hapax_prob = {}
+
+    for token, count in count_token_dic.items():
+        if count == 1:
+            for tag, count in token_tag_dict[token].items():
+                if tag not in hapax_count_per_tag:
+                    hapax_count_per_tag[tag] = 1
+                else:
+                    hapax_count_per_tag[tag] += 1
+                total_hapax_count += 1
+    
+    for tag, count in hapax_count_per_tag.items():
+        hapax_prob[tag] = count / total_hapax_count
+
+    for tag in tags_list:
+        tag_count = tags_dict[tag]
+        num = DELTA
+        den = tag_count + DELTA * (words + 1)
+        output_probabilities["unseen_token_null"][tag] = num/den
+    
+    for tag, tags_count in tags_dict.items():
+        tags_tokens = tags_tokens_dict[tag]
+        for token, tokens_count in tags_tokens.items():
+            if tag in hapax_prob:
+                numerator = tokens_count + DELTA * hapax_prob[tag]
+                denominator = tags_count + (DELTA * hapax_prob[tag]) * (words + 1)
+            else:
+                numerator = tokens_count + DELTA
+                denominator = tags_count + DELTA * (words + 1)
+
+            if token in output_probabilities:
+                token_prob_tag = output_probabilities[token]
+                token_prob_tag[tag] = numerator/denominator
+            else:
+                output_probabilities[token] = {}
+                token_prob_tag = output_probabilities[token]
+                token_prob_tag[tag] = numerator/denominator
+    f = open("output_probs2.txt", "w")
+    for word, d in output_probabilities.items():
+        for tag, prob in d.items():
+            f.write(f'{tag}\t{word}\t{prob}\n')
+    return output_probabilities
+
+def viterbi2(words, tag_list, transition_dict_prob, output_prob):
     V = []
     # will be using a list to keep all the values for Viterbi Algorithm
     V.append({})
     # the dictionary within V will be for each step
-    num_observations = len(observations)
+    num_words = len(words)
     # output_prob
     # {word1: {tag1: prob1, tag2: prob}, word2: {tag1: prob1, ...}}
     # transition_dict_prob
@@ -537,58 +633,28 @@ def viterbi2(observations, tag_list, transition_dict_prob, output_prob):
     counter = 0
     # looping through the tags to get the start probabilities
     for tag in tag_list:
-        # logging the probabilities and the backpointer. backpointer is null since this is the first step
+        # logging the probabilities and the backpointer. backpointer is none since this is the first step
         # if the word has been seen and the tag exists for the word
-        if (len(observations[counter]) > 0 and observations[counter][0] == "@"):
+        if (words[counter][0:6] == "@user_"):
             if (tag == "@"):
                 V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
             else:
                 V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
-        elif (observations[counter][0].isdigit()):
-            if (tag == "$"):
-                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
-            else:
-                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
-        elif (observations[counter][0] == "#"):
-            if (tag == "#"):
-                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
-            else:
-                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
-        elif (observations[counter][0:6] == "http://" or observations[counter][0:3] == "www."):
+        elif (words[counter][0:4] == "http" or words[counter][0:3] == "www."):
             if (tag == "U"):
                 V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
             else:
                 V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
         else:
-            if (observations[counter] in output_prob.keys() and tag in output_prob[observations[counter]].keys()):
-                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob[observations[counter]][tag], "bp": None}
+            if (words[counter] in output_prob.keys() and tag in output_prob[words[counter]].keys()):
+                V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob[words[counter]][tag], "bp": None}
             # if not, use the unseen_token_null
             else:
-                # if (len(observations[counter]) > 0 and observations[counter][0] == "@"):
-                #     if (tag == "@"):
-                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
-                #     else:
-                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
-                # elif (observations[counter][0].isdigit()):
-                #     if (tag == "$"):
-                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
-                #     else:
-                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
-                # elif (observations[counter][0] == "#"):
-                #     if (tag == "#"):
-                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
-                #     else:
-                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
-                # elif (observations[counter][0:6] == "http://" or observations[counter][0:3] == "www."):
-                #     if (tag == "U"):
-                #         V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 1, "bp": None}
-                # else:
-                #     V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * 0, "bp": None}
                 V[counter][tag] = {"prob": transition_dict_prob["START"][tag] * output_prob["unseen_token_null"][tag], "bp": None}
     
     counter += 1
     
-    while (counter < num_observations):
+    while (counter < num_words):
         # adding another dictionary to log data for the next iteration
         V.append({})
         # looping through the tags to get the probabilities and doing a comparison to get the max prob.
@@ -603,51 +669,21 @@ def viterbi2(observations, tag_list, transition_dict_prob, output_prob):
                     prev_tag_selected = prev_tag
             # after getting the max_trans_prob and prev_tag_selected, we need to get the max_prob
             # if the word has been seen and the tag exists for the word
-            if (len(observations[counter]) > 0 and observations[counter][0] == "@"):
+            if (len(words[counter]) > 0 and words[counter][0] == "@"):
                 if (tag == "@"):
                     max_prob = max_trans_prob * 1
                 else:
                     max_prob = max_trans_prob * 0
-            elif (observations[counter][0].isdigit()):
-                if (tag == "$"):
-                    max_prob = max_trans_prob * 1
-                else:
-                    max_prob = max_trans_prob * 0
-            elif (observations[counter][0] == "#"):
-                if (tag == "#"):
-                    max_prob = max_trans_prob * 1
-                else:
-                    max_prob = max_trans_prob * 0
-            elif (observations[counter][0:6] == "http://" or observations[counter][0:3] == "www."):
+            elif (words[counter][0:4] == "http" or words[counter][0:41] == "www."):
                 if (tag == "U"):
                     max_prob = max_trans_prob * 1
                 else:
                     max_prob = max_trans_prob * 0
             else:
-                if (observations[counter] in output_prob.keys() and tag in output_prob[observations[counter]].keys()):
-                    max_prob = max_trans_prob * output_prob[observations[counter]][tag]
+                if (words[counter] in output_prob.keys() and tag in output_prob[words[counter]].keys()):
+                    max_prob = max_trans_prob * output_prob[words[counter]][tag]
                 # if not, use the unseen_token_null
                 else:
-                    # if (len(observations[counter]) > 0 and observations[counter][0] == "@"):
-                    #     if (tag == "@"):
-                    #         max_prob = max_trans_prob * 1
-                    #     else:
-                    #         max_prob = max_trans_prob * 0
-                    # elif (observations[counter][0].isdigit()):
-                    #     if (tag == "$"):
-                    #         max_prob = max_trans_prob * 1
-                    #     else:
-                    #         max_prob = max_trans_prob * 0
-                    # elif (observations[counter][0] == "#"):
-                    #     if (tag == "#"):
-                    #         max_prob = max_trans_prob * 1
-                    #     else:
-                    #         max_prob = max_trans_prob * 0
-                    # elif (observations[counter][0:6] == "http://" or observations[counter][0:3] == "www."):
-                    #     if (tag == "U"):
-                    #         max_prob = max_trans_prob * 1
-                    #     else:
-                    #         max_prob = max_trans_prob * 0
                     max_prob = max_trans_prob * output_prob["unseen_token_null"][tag]
             # logging prob and backpointer to V
             V[counter][tag] = {"prob": max_prob, "bp": prev_tag_selected}
@@ -685,7 +721,7 @@ def viterbi2(observations, tag_list, transition_dict_prob, output_prob):
         opt.insert(0, V[t+1][previous]["bp"])
         previous = V[t+1][previous]["bp"]
     
-    opt.pop()
+    opt.pop() # to remove the first none backpointer
     return opt
 
 
@@ -697,7 +733,7 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
     train_filename = "twitter_train_lower.txt"
     tag_list = tags(in_tags_filename) # all the possible tags
     transition_dict_prob = transition_prob(train_filename) # getting all the transition probabilities
-    output_prob = calc_output_prob(train_filename)  # getting all the ouptut probabilities
+    output_prob = calc_output_prob_lower(train_filename)  # getting all the ouptut probabilities
     test_file = open("twitter_dev_no_tag_lower.txt", "r")
     f = open("viterbi_predictions2.txt", "w")
     observations = []
@@ -712,7 +748,7 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
                 f.write(f'{elem}\n')
             observations.clear()
 
-################################### QUESTION 4B #####################################
+################################### QUESTION 5 #####################################
 # The accuracy of our prediction is 77.4% (3 s.f.), where the number of correctly 
 # predicted tags / number of predictions is 1066/1378.
 
