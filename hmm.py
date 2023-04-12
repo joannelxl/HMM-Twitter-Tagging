@@ -290,10 +290,7 @@ def transition_prob(train_filename):
     transition_dict = count_transition_tags(train_filename)
     tag_dict = count_tags(train_filename)
     tag_dict_start = count_tags_with_start(train_filename)
-    # num_words = sum(tag_dict_start.values())
-    # num_words = sum(tag_dict.values())
-    # print(num_words)
-    # to confirm!! what is num_words??
+    words = num_words(train_filename)
     f = open("trans_probs.txt", "w")
     transition_dict_prob = {}
     transition_dict_count = {}
@@ -303,7 +300,7 @@ def transition_prob(train_filename):
             count = v
             #print(f'[{key}:{k} count: {count}]')
             # prob = (count) / tag_dict_start[key]
-            prob = (count + DELTA) / (sum(transition_dict[key].values()) + DELTA * (16683 + 1))
+            prob = (count + DELTA) / (sum(transition_dict[key].values()) + DELTA * (words + 1))
             #  prob = (count + DELTA) / (tag_dict_start[key] + DELTA * (5763 + 1))
             if (key in transition_dict_prob.keys()):
                 transition_dict_prob[key][k] = prob
@@ -318,7 +315,7 @@ def transition_prob(train_filename):
     for key1 in tag_dict:
         for key2 in tag_dict:
             if key2 not in transition_dict_prob[key1].keys():
-                prob = (0 + DELTA) / (tag_dict_start[key1] + DELTA * (16683 + 1))
+                prob = (0 + DELTA) / (tag_dict_start[key1] + DELTA * (words + 1))
                 if (key1 in transition_dict_prob.keys()):
                     transition_dict_prob[key1][key2] = prob
                 else:
@@ -619,6 +616,66 @@ def calc_output_prob_lower(in_train_filename):
         for tag, prob in d.items():
             f.write(f'{tag}\t{word}\t{prob}\n')
     return output_probabilities
+
+def transition_prob(train_filename):
+    # DELTA = 0.1
+    transition_dict = count_transition_tags(train_filename)
+    tag_dict = count_tags(train_filename)
+    tag_dict_start = count_tags_with_start(train_filename)
+    # num_words = sum(tag_dict_start.values())
+    # num_words = sum(tag_dict.values())
+    words = num_words(train_filename)
+    # to confirm!! what is num_words??
+    f = open("trans_probs2.txt", "w")
+    transition_dict_prob = {}
+    transition_dict_count = {}
+    # print(transition_dict)
+    for (key, value) in transition_dict.items(): # key is initial tag and value is the dict of later tag and the count
+        for (k, v) in value.items(): # k is later tag and v is count
+            count = v
+            #print(f'[{key}:{k} count: {count}]')
+            # prob = (count) / tag_dict_start[key]
+            prob = (count + DELTA) / (sum(transition_dict[key].values()) + DELTA * (words + 1))
+            #  prob = (count + DELTA) / (tag_dict_start[key] + DELTA * (5763 + 1))
+            if (key in transition_dict_prob.keys()):
+                transition_dict_prob[key][k] = prob
+                transition_dict_count[key][k] = count
+            else:
+                transition_dict_prob[key] = {}
+                transition_dict_prob[key][k] = prob
+                transition_dict_count[key] = {}
+                transition_dict_count[key][k] = count
+            # f.write(f'{key}\t\t{k}\t\t{prob}\n')
+    # unknown_dict = {}
+    for key1 in tag_dict:
+        for key2 in tag_dict:
+            if key2 not in transition_dict_prob[key1].keys():
+                prob = (0 + DELTA) / (tag_dict_start[key1] + DELTA * (words + 1))
+                if (key1 in transition_dict_prob.keys()):
+                    transition_dict_prob[key1][key2] = prob
+                else:
+                    transition_dict_prob[key1] = {}
+                    transition_dict_prob[key1][key2] = prob
+                # f.write(f'{key1}\t\t{key2}\t\t{prob}\n')
+    # for (key, value) in tag_dict
+    #print(f'tag_dict: {tag_dict}')
+    sum_prob = {}
+    sum_count = {}
+    for key in transition_dict_prob.keys():
+        sum_prob[key] = sum(transition_dict_prob[key].values())
+        sum_count[key] = sum(transition_dict_count[key].values())
+    # print(sum_prob)
+    for (tag1) in transition_dict_prob.keys():
+        for (tag2, p) in transition_dict_prob[tag1].items():
+            transition_dict_prob[tag1][tag2] = p * (1 / sum_prob[tag1])
+            f.write(f'{tag1}\t\t{tag2}\t\t{transition_dict_prob[tag1][tag2]}\n')
+    for key in transition_dict_prob.keys():
+        sum_prob[key] = sum(transition_dict_prob[key].values())
+        sum_count[key] = sum(transition_dict_count[key].values())
+    # print(sum_prob)
+    # print(sum_count)
+    # print(f'sum from transition: {sum(sum_count.values())}')
+    return transition_dict_prob
 
 def viterbi2(words, tag_list, transition_dict_prob, output_prob):
     V = []
