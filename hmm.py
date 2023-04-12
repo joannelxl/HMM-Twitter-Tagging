@@ -315,7 +315,7 @@ def transition_prob(train_filename):
     for key in transition_dict_prob.keys():
         sum_prob[key] = sum(transition_dict_prob[key].values())
         sum_count[key] = sum(transition_dict_count[key].values())
-    print(transition_dict_prob)
+    # print(transition_dict_prob)
     return transition_dict_prob
 
 def calculate_sum():
