@@ -171,58 +171,6 @@ def calc_naive_output_prob(in_train_filename):
                 token_prob_tag[tag] = numerator/denominator
     return output_probabilities
 
-def calc_output_prob(in_train_filename):
-    naive_ouput_probs_dict = calc_naive_output_prob(in_train_filename)
-    tags_list = tags("twitter_tags.txt")
-    for token in naive_ouput_probs_dict:
-        for tag in tags_list:
-            if (tag not in naive_ouput_probs_dict[token]):
-                prob = naive_ouput_probs_dict["unseen_token_null"][tag]
-                naive_ouput_probs_dict[token][tag] = prob
-    return naive_ouput_probs_dict
-
-def calc_transition_prob(in_train_filename, in_tags_filename):
-    trans_probabilities = {}
-    DELTA = 0.1
-    words = num_words(in_train_filename)
-    transition_dict = count_transition_tags(in_train_filename)
-    print(transition_dict["V"])
-    tags_list = tags(in_tags_filename)
-
-    # e.g. {yt-1 = i1:{yt = j1: trans, yt = j2:trans}, yt-1 = i2:{yt = j1: trans, yt = j2:trans}}
-    for initial, finals in transition_dict.items():
-        for final, count in finals.items():
-            numerator = count + DELTA
-            denominator = sum(transition_dict[initial].values()) + DELTA * (words + 1)
-            
-            if (initial in trans_probabilities):
-                initial_to = trans_probabilities[initial]
-                initial_to[final] = numerator / denominator
-            
-            else:
-                trans_probabilities[initial] = {}
-                initial_to = trans_probabilities[initial]
-                initial_to[final] = numerator / denominator
-    
-    for i in trans_probabilities:
-        for tag in tags_list:
-            if (tag not in trans_probabilities[i]):
-                num = DELTA
-                den = sum(transition_dict[i].values()) + DELTA * (words + 1)
-                trans_probabilities[i][tag] = num / den
-        if (i != "START" and "STOP" not in trans_probabilities[i]):
-            num = DELTA
-            den = sum(transition_dict[i].values()) + DELTA * (words + 1)
-            trans_probabilities[i]["STOP"] = num / den
-    # normalisation
-
-    sum_dict = {}
-    for i in trans_probabilities:
-        sum_dict[i] = sum(trans_probabilities[i].values())  
-    for i, trans_probs in trans_probabilities.items():
-        for j, trans_prob in trans_probs.items():
-            trans_probabilities[i][j] = trans_prob/sum_dict[i]
-    return trans_probabilities
 
 
 
@@ -336,6 +284,60 @@ def naive_predict2(in_output_probs_filename, in_train_filename, in_test_filename
 # predicted tags / number of predictions is 955/1378.
 
 ################################### QUESTION 4A #####################################
+def calc_output_prob(in_train_filename):
+    naive_ouput_probs_dict = calc_naive_output_prob(in_train_filename)
+    tags_list = tags("twitter_tags.txt")
+    for token in naive_ouput_probs_dict:
+        for tag in tags_list:
+            if (tag not in naive_ouput_probs_dict[token]):
+                prob = naive_ouput_probs_dict["unseen_token_null"][tag]
+                naive_ouput_probs_dict[token][tag] = prob
+    return naive_ouput_probs_dict
+
+def calc_transition_prob(in_train_filename, in_tags_filename):
+    trans_probabilities = {}
+    DELTA = 0.1
+    words = num_words(in_train_filename)
+    transition_dict = count_transition_tags(in_train_filename)
+    print(transition_dict["V"])
+    tags_list = tags(in_tags_filename)
+
+    # e.g. {yt-1 = i1:{yt = j1: trans, yt = j2:trans}, yt-1 = i2:{yt = j1: trans, yt = j2:trans}}
+    for initial, finals in transition_dict.items():
+        for final, count in finals.items():
+            numerator = count + DELTA
+            denominator = sum(transition_dict[initial].values()) + DELTA * (words + 1)
+            
+            if (initial in trans_probabilities):
+                initial_to = trans_probabilities[initial]
+                initial_to[final] = numerator / denominator
+            
+            else:
+                trans_probabilities[initial] = {}
+                initial_to = trans_probabilities[initial]
+                initial_to[final] = numerator / denominator
+    
+    for i in trans_probabilities:
+        for tag in tags_list:
+            if (tag not in trans_probabilities[i]):
+                num = DELTA
+                den = sum(transition_dict[i].values()) + DELTA * (words + 1)
+                trans_probabilities[i][tag] = num / den
+        if (i != "START" and "STOP" not in trans_probabilities[i]):
+            num = DELTA
+            den = sum(transition_dict[i].values()) + DELTA * (words + 1)
+            trans_probabilities[i]["STOP"] = num / den
+    # normalisation
+
+    sum_dict = {}
+    for i in trans_probabilities:
+        sum_dict[i] = sum(trans_probabilities[i].values())  
+    for i, trans_probs in trans_probabilities.items():
+        for j, trans_prob in trans_probs.items():
+            trans_probabilities[i][j] = trans_prob/sum_dict[i]
+    return trans_probabilities
+
+
 output_probabilities = calc_output_prob("twitter_train.txt")
 with open('output_probs.txt', 'w') as f:
     for token, tags_prob in output_probabilities.items():
@@ -426,7 +428,7 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
             f.write(prediction)
             f.write('\n')
 
-def count_lc_tokens_tags(in_train_filename):
+def count_tag_token_lower(in_train_filename):
     freqs = {}
     with open(in_train_filename) as f:
         for line in f:
@@ -447,7 +449,8 @@ def count_lc_tokens_tags(in_train_filename):
                     tag_tokens = freqs[tag]
                     tag_tokens[token] = 1
     return freqs
-def new_num_words(in_train_filename):
+
+def num_words_lower(in_train_filename):
     freqs = {}
     with open(in_train_filename) as f:
         #loop through every tag
@@ -499,9 +502,9 @@ def count_token_tag_lower(in_train_filename):
 def calc_new_output_prob(in_train_filename):
     output_probabilities = {}
     DELTA = 0.1
-    words = new_num_words(in_train_filename)
+    words = num_words_lower(in_train_filename)
     tags_dict = count_tags(in_train_filename)
-    tags_tokens_dict = count_lc_tokens_tags(in_train_filename)
+    tags_tokens_dict = count_tag_token_lower(in_train_filename)
     token_tag_dict = count_token_tag_lower(in_train_filename)
     tags_list = tags("twitter_tags.txt")
     count_token_dict = count_tokens_lower(in_train_filename)
@@ -557,7 +560,7 @@ def calc_new_output_prob(in_train_filename):
 def calc_new_transition_prob(in_train_filename, in_tags_filename):
     trans_probabilities = {}
     DELTA = 0.1
-    words = new_num_words(in_train_filename)
+    words = num_words_lower(in_train_filename)
     transition_dict = count_transition_tags(in_train_filename)
     tags_list = tags(in_tags_filename)
 
@@ -631,8 +634,7 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
     pi = {}
     bp = {}
     step = 1
-    for num in range(252, 263):
-        print(testWords[num])
+    for num in range(1, len(testWords)):
         if (testWords[num-1] == " "):
             pi[step] = {}
             bp[step] = {}
