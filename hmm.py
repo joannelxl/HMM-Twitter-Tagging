@@ -462,13 +462,67 @@ def new_num_words(in_train_filename):
                     freqs[token] = 1
     return sum(freqs.values())
 
+def count_tokens_lower(in_train_filename):
+    freqs = {}
+    with open(in_train_filename) as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0].lower()
+                if token in freqs:
+                    freqs[token] += 1
+                else:
+                    freqs[token] = 1
+    return freqs
+
+def count_token_tag_lower(in_train_filename):
+    freqs = {}
+    with open(in_train_filename) as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0].lower()
+                tag = temp_list[1]
+
+                if token in freqs:
+                    tag_tokens = freqs[token]
+                    if tag in tag_tokens:
+                        tag_tokens[tag] += 1
+                    else:
+                        tag_tokens[tag] = 1
+                else:
+                    freqs[token] = {}
+                    tag_tokens = freqs[token]
+                    tag_tokens[tag] = 1
+    return freqs
+
 def calc_new_output_prob(in_train_filename):
     output_probabilities = {}
     DELTA = 0.1
     words = new_num_words(in_train_filename)
     tags_dict = count_tags(in_train_filename)
     tags_tokens_dict = count_lc_tokens_tags(in_train_filename)
+    token_tag_dict = count_token_tag_lower(in_train_filename)
     tags_list = tags("twitter_tags.txt")
+    count_token_dict = count_tokens_lower(in_train_filename)
+
+
+    hapex_count_per_tag = {}
+    total_hapex_count = 0
+    hapex_prob = {}
+
+    for token, count in count_token_dict.items():
+        if count == 1:
+            for tag, count in token_tag_dict[token].items():
+                if tag not in hapex_count_per_tag:
+                    hapex_count_per_tag[tag] = 1
+                else:
+                    hapex_count_per_tag[tag] += 1
+                total_hapex_count += 1
+    for tag, count in hapex_count_per_tag.items():
+        hapex_prob[tag] = count / total_hapex_count
 
     output_probabilities["unseen_token_null"] = {}
     for tag in tags_list:
@@ -480,8 +534,12 @@ def calc_new_output_prob(in_train_filename):
     for tag, tags_count in tags_dict.items():
         tags_tokens = tags_tokens_dict[tag]
         for token, tokens_count in tags_tokens.items():
-            numerator = tokens_count + DELTA
-            denominator = tags_count + DELTA * (words + 1)
+            if tag in hapex_prob:
+                numerator = tokens_count + DELTA * hapex_prob[tag]
+                denominator = tags_count + (DELTA * hapex_prob[tag]) * (words + 1)
+            else:
+                numerator = tokens_count + DELTA
+                denominator = tags_count + DELTA * (words + 1)
 
             if token in output_probabilities:
                 token_prob_tag = output_probabilities[token]
@@ -497,6 +555,7 @@ def calc_new_output_prob(in_train_filename):
                 prob = output_probabilities["unseen_token_null"][tag]
                 output_probabilities[token][tag] = prob
     return output_probabilities
+
 
 new_output_probabilities = calc_new_output_prob("twitter_train.txt")
 with open('output_probs2.txt', 'w') as f:
