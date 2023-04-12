@@ -181,11 +181,9 @@ def calc_output_prob(in_train_filename):
                 naive_ouput_probs_dict[token][tag] = prob
     return naive_ouput_probs_dict
 
-
 def calc_transition_prob(in_train_filename, in_tags_filename):
     trans_probabilities = {}
     DELTA = 0.1
-    #words = 16683
     words = num_words(in_train_filename)
     transition_dict = count_transition_tags(in_train_filename)
     print(transition_dict["V"])
@@ -556,12 +554,62 @@ def calc_new_output_prob(in_train_filename):
                 output_probabilities[token][tag] = prob
     return output_probabilities
 
+def calc_new_transition_prob(in_train_filename, in_tags_filename):
+    trans_probabilities = {}
+    DELTA = 0.1
+    words = new_num_words(in_train_filename)
+    transition_dict = count_transition_tags(in_train_filename)
+    tags_list = tags(in_tags_filename)
+
+    # e.g. {yt-1 = i1:{yt = j1: trans, yt = j2:trans}, yt-1 = i2:{yt = j1: trans, yt = j2:trans}}
+    for initial, finals in transition_dict.items():
+        for final, count in finals.items():
+            numerator = count + DELTA
+            denominator = sum(transition_dict[initial].values()) + DELTA * (words + 1)
+            
+            if (initial in trans_probabilities):
+                initial_to = trans_probabilities[initial]
+                initial_to[final] = numerator / denominator
+            
+            else:
+                trans_probabilities[initial] = {}
+                initial_to = trans_probabilities[initial]
+                initial_to[final] = numerator / denominator
+    
+    for i in trans_probabilities:
+        for tag in tags_list:
+            if (tag not in trans_probabilities[i]):
+                num = DELTA
+                den = sum(transition_dict[i].values()) + DELTA * (words + 1)
+                trans_probabilities[i][tag] = num / den
+        if (i != "START" and "STOP" not in trans_probabilities[i]):
+            num = DELTA
+            den = sum(transition_dict[i].values()) + DELTA * (words + 1)
+            trans_probabilities[i]["STOP"] = num / den
+    # normalisation
+
+    sum_dict = {}
+    for i in trans_probabilities:
+        sum_dict[i] = sum(trans_probabilities[i].values())  
+    for i, trans_probs in trans_probabilities.items():
+        for j, trans_prob in trans_probs.items():
+            trans_probabilities[i][j] = trans_prob/sum_dict[i]
+    return trans_probabilities
+
+
 
 new_output_probabilities = calc_new_output_prob("twitter_train.txt")
 with open('output_probs2.txt', 'w') as f:
     for token, tags_prob in new_output_probabilities.items():
         for tag, prob in tags_prob.items():
             f.write("{} \t {} \t {} \n ".format(tag, token, prob))
+
+
+new_trans_probabilities = calc_new_transition_prob("twitter_train.txt", "twitter_tags.txt")
+with open('trans_probs2.txt', 'w') as f:
+    for inital, finals in new_trans_probabilities.items():
+        for final, prob in finals.items():
+            f.write("{} \t {} \t {} \n ".format(inital, final, prob))
 
 def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
                      out_predictions_filename):
@@ -583,7 +631,8 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
     pi = {}
     bp = {}
     step = 1
-    for num in range(1, len(testWords)):
+    for num in range(252, 263):
+        print(testWords[num])
         if (testWords[num-1] == " "):
             pi[step] = {}
             bp[step] = {}
@@ -591,10 +640,11 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
             for tag in tags_list:
                 if (testWords[num][0:6] == "@user_"):
                     if (tag == "@"):
+                        
                         pi[step][tag] = trans_dict["START"][tag] * 1
                     else:
                         pi[step][tag] = trans_dict["START"][tag] * 0
-                elif (testWords[num][0:4] == "http" or testWords[num][0:3] == "www"):
+                elif (testWords[num][0:4] == "http" or testWords[num][0:4] == "www."):
                     if (tag == "U"):
                         pi[step][tag] = trans_dict["START"][tag] * 1
                     else:
@@ -642,7 +692,7 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
                             temp[i] = trans_dict[i][j] * 1
                         else:
                             temp[i] = trans_dict[i][j] * 0
-                    elif (testWords[num][0:4] == "http" or testWords[num][0:3] == "www"):
+                    elif (testWords[num][0:4] == "http" or testWords[num][0:4] == "www."):
                         if (j == "U"):
                             temp[i] = trans_dict[i][j] * 1
                         else:
