@@ -315,7 +315,7 @@ def transition_prob(train_filename):
     for key in transition_dict_prob.keys():
         sum_prob[key] = sum(transition_dict_prob[key].values())
         sum_count[key] = sum(transition_dict_count[key].values())
-
+    print(transition_dict_prob)
     return transition_dict_prob
 
 def calculate_sum():
@@ -584,7 +584,7 @@ def calc_output_prob_lower(in_train_filename):
             f.write(f'{tag}\t{word}\t{prob}\n')
     return output_probabilities
 
-def transition_prob(train_filename):
+def transition_prob2(train_filename):
     # DELTA = 0.1
     transition_dict = count_transition_tags(train_filename)
     tag_dict = count_tags(train_filename)
@@ -756,7 +756,7 @@ def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_
     # observations are the words, while hidden states are the tags
     train_filename = "twitter_train_lower.txt"
     tag_list = tags(in_tags_filename) # all the possible tags
-    transition_dict_prob = transition_prob(train_filename) # getting all the transition probabilities
+    transition_dict_prob = transition_prob2(train_filename) # getting all the transition probabilities
     output_prob = calc_output_prob_lower(train_filename)  # getting all the ouptut probabilities
     test_file = open("twitter_dev_no_tag_lower.txt", "r")
     f = open("viterbi_predictions2.txt", "w")
