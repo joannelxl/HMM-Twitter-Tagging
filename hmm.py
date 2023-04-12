@@ -185,12 +185,10 @@ def calc_output_prob(in_train_filename):
 def calc_transition_prob(in_train_filename, in_tags_filename):
     trans_probabilities = {}
     DELTA = 0.1
+    #words = 16683
     words = num_words(in_train_filename)
     transition_dict = count_transition_tags(in_train_filename)
-    trans_count = 0
-    for i, v in transition_dict.items():
-        trans_count += sum(v.values())
-    print(trans_count)
+    print(transition_dict["V"])
     tags_list = tags(in_tags_filename)
 
     # e.g. {yt-1 = i1:{yt = j1: trans, yt = j2:trans}, yt-1 = i2:{yt = j1: trans, yt = j2:trans}}
@@ -218,7 +216,6 @@ def calc_transition_prob(in_train_filename, in_tags_filename):
             num = DELTA
             den = sum(transition_dict[i].values()) + DELTA * (words + 1)
             trans_probabilities[i]["STOP"] = num / den
-
     # normalisation
 
     sum_dict = {}
@@ -227,8 +224,6 @@ def calc_transition_prob(in_train_filename, in_tags_filename):
     for i, trans_probs in trans_probabilities.items():
         for j, trans_prob in trans_probs.items():
             trans_probabilities[i][j] = trans_prob/sum_dict[i]
-    print(sum_dict)
-
     return trans_probabilities
 
 
@@ -389,15 +384,15 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
 
         elif (testWords[num] == " "):
             temp_dict = {}
+            temp_list = []
             prev = step - 1
             for t, tag_prob in pi[prev].items():
                 temp_dict[t] = tag_prob * trans_dict[t]["STOP"]
             maxProb = max(temp_dict.values())
-            maxBP = max(temp_dict, key=temp_dict.get)
+            finalBP = max(temp_dict, key=temp_dict.get)
+            temp_list.append(finalBP)
             curr_step = max(bp)
-            curr_bp = bp[curr_step][maxBP]
-            temp_list = []
-            temp_list.append(maxBP)
+            curr_bp = bp[curr_step][finalBP]
             while curr_bp != 0:
                 temp_list.append(curr_bp)
                 curr_step -= 1
@@ -416,19 +411,15 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
             
             for j in tags_list:
                 temp = {}
-                sum = 0
                 for i, prev_prob in pi[prev].items():
 
                     if (testWords[num] in output_dict):
                         temp[i] = prev_prob * trans_dict[i][j] * output_dict[testWords[num]][j]
-                        sum += 1
                     else:
                         temp[i] = prev_prob * trans_dict[i][j] * output_dict["unseen_token_null"][j]
-                        sum += 1
                 
                 pi[step][j] = max(temp.values())
                 bp[step][j] = max(temp, key=temp.get)
-
 
             step += 1
 
@@ -437,74 +428,181 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
             f.write(prediction)
             f.write('\n')
 
-                
+def count_lc_tokens_tags(in_train_filename):
+    freqs = {}
+    with open(in_train_filename) as f:
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0].lower()
+                tag = temp_list[1]
 
-""" def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
-                    out_predictions_filename):
-    viterbi_prediction = []
-    pi = {}
-    bp = {}
-    tags_list = tags(in_tags_filename)
-    output_dict = output_convert_to_dict(in_output_probs_filename)
-    trans_dict = trans_convert_to_dict(in_trans_probs_filename)
-    step = 1
-    # From start to first state
-    # {1: {tag = y1: prob, tag = y2: prob}, 2: {tag = y1: prob, tag = y2: prob}}
-    with open(in_test_filename) as test_file:
-        for word in test_file:
-            token = word.strip()
-            if (token):
-                pi[step] = {}
-                bp[step] = {}
-                prob_list = pi[step]
-                bp_list = bp[step]
-                if (step == 1):
-                    for tag in tags_list:
-                        if (token in output_dict):
-                            prob_list[tag] = trans_dict["START"][tag] * output_dict[token][tag]
-                        else:
-                            prob_list[tag] = trans_dict["START"][tag] * output_dict["unseen_token_null"][tag]
-                        bp_list[tag] = 0
+                if tag in freqs:
+                    tag_tokens = freqs[tag]
+                    if token in tag_tokens:
+                        tag_tokens[token] += 1
+                    else:
+                        tag_tokens[token] = 1
                 else:
-                    # {prev y=1: prob, prev y=2: prob}
-                    prev = step - 1
-                    for j in tags_list:
-                        temp_dict = {}
-                        for i, prev_prob in pi[prev].items():
-                            if (token in output_dict):
-                                temp_dict[i] = prev_prob * trans_dict[i][j] * output_dict[token][tag]
-                            else:
-                                temp_dict[i] = prev_prob * trans_dict[i][j] * output_dict["unseen_token_null"][tag]
-                        prob_list[j] = max(temp_dict.values())
-                        bp_list[j] = max(temp_dict, key=temp_dict.get)
-    
-                step += 1
-    print(pi[60])
-    prev = step - 1
-    temp_dict = {}
-    for t, probs in pi[prev].items():
-        temp_dict[t] = probs * trans_dict[t]["STOP"]
-    maxProb = max(temp_dict.values())
-    maxBP = max(temp_dict, key=temp_dict.get)
-    viterbi_prediction.append(maxBP)
-    curr_step = max(bp)
-    curr_bp = bp[curr_step][maxBP]
-    while curr_step != 1:
-        viterbi_prediction.append(curr_bp)
-        curr_step -= 1
-        curr_bp = bp[curr_step][curr_bp]
-    viterbi_prediction = list(reversed(viterbi_prediction))
-    #print(viterbi_prediction)
-    
-    with open(out_predictions_filename, "w") as f:
-        for prediction in viterbi_prediction:
-            f.write(prediction)
-            f.write('\n')   
-             """
+                    freqs[tag] = {}
+                    tag_tokens = freqs[tag]
+                    tag_tokens[token] = 1
+    return freqs
+def new_num_words(in_train_filename):
+    freqs = {}
+    with open(in_train_filename) as f:
+        #loop through every tag
+        for line in f:
+            l = line.strip()
+            if l:
+                temp_list = l.split()
+                token = temp_list[0].lower()
+                if token not in freqs:
+                    freqs[token] = 1
+    return sum(freqs.values())
+
+def calc_new_output_prob(in_train_filename):
+    output_probabilities = {}
+    DELTA = 0.1
+    words = new_num_words(in_train_filename)
+    tags_dict = count_tags(in_train_filename)
+    tags_tokens_dict = count_lc_tokens_tags(in_train_filename)
+    tags_list = tags("twitter_tags.txt")
+
+    output_probabilities["unseen_token_null"] = {}
+    for tag in tags_list:
+        tag_count = tags_dict[tag]
+        num = DELTA
+        den = tag_count + DELTA * (words + 1)
+        output_probabilities["unseen_token_null"][tag] = num/den
+
+    for tag, tags_count in tags_dict.items():
+        tags_tokens = tags_tokens_dict[tag]
+        for token, tokens_count in tags_tokens.items():
+            numerator = tokens_count + DELTA
+            denominator = tags_count + DELTA * (words + 1)
+
+            if token in output_probabilities:
+                token_prob_tag = output_probabilities[token]
+                token_prob_tag[tag] = numerator/denominator
+            else:
+                output_probabilities[token] = {}
+                token_prob_tag = output_probabilities[token]
+                token_prob_tag[tag] = numerator/denominator
+
+    for token in output_probabilities:
+        for tag in tags_list:
+            if (tag not in output_probabilities[token]):
+                prob = output_probabilities["unseen_token_null"][tag]
+                output_probabilities[token][tag] = prob
+    return output_probabilities
+
+new_output_probabilities = calc_new_output_prob("twitter_train.txt")
+with open('output_probs2.txt', 'w') as f:
+    for token, tags_prob in new_output_probabilities.items():
+        for tag, prob in tags_prob.items():
+            f.write("{} \t {} \t {} \n ".format(tag, token, prob))
 
 def viterbi_predict2(in_tags_filename, in_trans_probs_filename, in_output_probs_filename, in_test_filename,
                      out_predictions_filename):
-    pass
+                     
+    tags_list = tags(in_tags_filename)
+    output_dict = output_convert_to_dict(in_output_probs_filename)
+    trans_dict = trans_convert_to_dict(in_trans_probs_filename)
+    viterbi_prediction = []
+    testWords = []
+    testWords.append(" ")
+    with open(in_test_filename) as test_file:
+        for word in test_file:
+            w = word.strip()
+            if (w):
+                testWords.append(w.lower())
+            else:
+                testWords.append(" ")
+
+    pi = {}
+    bp = {}
+    step = 1
+    for num in range(1, len(testWords)):
+        if (testWords[num-1] == " "):
+            pi[step] = {}
+            bp[step] = {}
+            
+            for tag in tags_list:
+                if (testWords[num][0:6] == "@user_"):
+                    if (tag == "@"):
+                        pi[step][tag] = trans_dict["START"][tag] * 1
+                    else:
+                        pi[step][tag] = trans_dict["START"][tag] * 0
+                elif (testWords[num][0:4] == "http" or testWords[num][0:3] == "www"):
+                    if (tag == "U"):
+                        pi[step][tag] = trans_dict["START"][tag] * 1
+                    else:
+                        pi[step][tag] = trans_dict["START"][tag] * 0
+                else:
+                    if (testWords[num] in output_dict):
+                        pi[step][tag] = trans_dict["START"][tag] * output_dict[testWords[num]][tag]
+                    else:
+                        pi[step][tag] = trans_dict["START"][tag] * output_dict["unseen_token_null"][tag]
+                bp[step][tag] = 0
+            step += 1
+
+        elif (testWords[num] == " "):
+            temp_dict = {}
+            temp_list = []
+            prev = step - 1
+            for t, tag_prob in pi[prev].items():
+                temp_dict[t] = tag_prob * trans_dict[t]["STOP"]
+            maxProb = max(temp_dict.values())
+            finalBP = max(temp_dict, key=temp_dict.get)
+            temp_list.append(finalBP)
+            curr_step = max(bp)
+            curr_bp = bp[curr_step][finalBP]
+            while curr_bp != 0:
+                temp_list.append(curr_bp)
+                curr_step -= 1
+                curr_bp = bp[curr_step][curr_bp]
+            temp_list = list(reversed(temp_list))
+            viterbi_prediction.extend(temp_list)
+            step = 1
+            pi = {}
+            bp = {}
+            
+
+        else:
+            pi[step] = {}
+            bp[step] = {}
+            prev = step - 1
+            
+            for j in tags_list:
+                temp = {}
+                for i, prev_prob in pi[prev].items():
+                    if (testWords[num][0:6] == "@user_"):
+                        if (j == "@"):
+                            temp[i] = trans_dict[i][j] * 1
+                        else:
+                            temp[i] = trans_dict[i][j] * 0
+                    elif (testWords[num][0:4] == "http" or testWords[num][0:3] == "www"):
+                        if (j == "U"):
+                            temp[i] = trans_dict[i][j] * 1
+                        else:
+                            temp[i] = trans_dict[i][j] * 0
+                    else:
+                        if (testWords[num] in output_dict):
+                            temp[i] = prev_prob * trans_dict[i][j] * output_dict[testWords[num]][j]
+                        else:
+                            temp[i] = prev_prob * trans_dict[i][j] * output_dict["unseen_token_null"][j]
+                
+                pi[step][j] = max(temp.values())
+                bp[step][j] = max(temp, key=temp.get)
+
+            step += 1
+
+    with open(out_predictions_filename, "w") as f:
+        for prediction in viterbi_prediction:
+            f.write(prediction)
+            f.write('\n')
 
 
 
@@ -562,16 +660,14 @@ def run():
     correct, total, acc = evaluate(viterbi_predictions_filename, in_ans_filename)
     print(f'Viterbi prediction accuracy:   {correct}/{total} = {acc}')
 
-    '''
-    trans_probs_filename2 =  f'{ddir}/trans_probs2.txt'
-    output_probs_filename2 = f'{ddir}/output_probs2.txt'
+    trans_probs_filename2 =  f'{ddir}trans_probs2.txt'
+    output_probs_filename2 = f'{ddir}output_probs2.txt'
 
-    viterbi_predictions_filename2 = f'{ddir}/viterbi_predictions2.txt'
+    viterbi_predictions_filename2 = f'{ddir}viterbi_predictions2.txt'
     viterbi_predict2(in_tags_filename, trans_probs_filename2, output_probs_filename2, in_test_filename,
                      viterbi_predictions_filename2)
     correct, total, acc = evaluate(viterbi_predictions_filename2, in_ans_filename)
     print(f'Viterbi2 prediction accuracy:  {correct}/{total} = {acc}') 
-    '''
     
 
 
