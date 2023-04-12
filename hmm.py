@@ -280,14 +280,23 @@ def transition_dic(file):
     transition_dic = {}
     tag_list = tags_list(file)
     unique_tag_list = put_tags_in_list(file)
+    # print(tag_list)
 
     for idx in range(len(tag_list)):
         # handle first index
         if idx == 0:
             temp_tuple = ("START", tag_list[idx].strip())
             transition_dic[temp_tuple] = 1
+
             if tag_list[idx] in unique_tag_list:
                 unique_tag_list.remove(tag_list[idx])
+            temp_tuple_transition = (
+                tag_list[idx].strip(), tag_list[idx + 1].strip())
+
+            if temp_tuple_transition not in transition_dic:
+                transition_dic[temp_tuple_transition] = 1
+            else:
+                transition_dic[temp_tuple_transition] += 1
 
         # if it is not start or stop state
         elif tag_list[idx - 1] != 'END' and tag_list[idx] != 'END' and tag_list[idx + 1] != 'END':
@@ -308,15 +317,15 @@ def transition_dic(file):
 
             temp_tuple_start = ("START", tag_list[idx].strip())
             if temp_tuple_start not in transition_dic:
-                transition_dic[temp_tuple] = 1
+                transition_dic[temp_tuple_start] = 1
             else:
-                transition_dic[temp_tuple] += 1
+                transition_dic[temp_tuple_start] += 1
 
             temp_tuple_end = (tag_list[idx].strip(), "STOP")
             if temp_tuple_end not in transition_dic:
-                transition_dic[temp_tuple] = 1
+                transition_dic[temp_tuple_end] = 1
             else:
-                transition_dic[temp_tuple] += 1
+                transition_dic[temp_tuple_end] += 1
 
         # if start state only:
         elif tag_list[idx] != 'END' and tag_list[idx - 1] == 'END':
@@ -348,7 +357,8 @@ def transition_dic(file):
     for tag in unique_tag_list:
         temp_tuple_start = ('START', tag)
         transition_dic[temp_tuple_start] = 0
-    # print(transition_dic)
+    # print(sum(transition_dic.values()))
+    # print(t)
     return transition_dic
 
 # compute transition probability:
@@ -360,6 +370,7 @@ def transition_probability(file):
     tag_count_dictionary = count_tags(file)
     transition_dictionary = transition_dic(file)
     tweet_count = count_tweets(file)
+    unique_tag_list = put_tags_in_list(file)
 
     text = "{} \t {} \t {} \n".format("Yt-1", "Yt", "Transition Probability")
     trans_output_file = 'trans_output_file.txt'
@@ -369,10 +380,11 @@ def transition_probability(file):
 
     unk_count_per_tag = {}
 
-    # knowns
+    # KNOWNS
     for tup, count in transition_dictionary.items():
         start_state = tup[0]
         next_state = tup[1]
+
         if start_state == "START":
             trans_prob = (count + DELTA) / \
                 (tweet_count + DELTA * (words + 1))
@@ -395,27 +407,32 @@ def transition_probability(file):
             unk_count_per_tag[start_state] = [next_state]
         else:
             unk_count_per_tag[start_state].append(next_state)
-    # print(len(tag_count_dictionary))
+    # print(unk_count_per_tag)
+    # print(trans_output_before_normalise[('Y', 'D')])
+
     # unknown tokens
     tags_seen = []
     for tag in tag_count_dictionary.keys():
         if tag not in tags_seen:
+            num_unk = (1+len(unique_tag_list)) - \
+                len(unk_count_per_tag[tag])
+
             count_yt_1 = tag_count_dictionary[tag]
+            # print(tag_count_dictionary)
             trans_prob = (DELTA) / (count_yt_1 + DELTA * (words + 1))
 
-            if tag not in trans_sum_before_normalise:
-                num_unk = len(tag_count_dictionary) - \
-                    len(unk_count_per_tag[tag])
-                trans_sum_before_normalise[tag] = trans_prob * num_unk
-            else:
-                num_unk = len(tag_count_dictionary) - \
-                    len(unk_count_per_tag[tag])
-                trans_sum_before_normalise[tag] += trans_prob * num_unk
-
-            tags_seen += tag
             trans_output_before_normalise[(tag, "Unseen")] = trans_prob
-    # print(trans_sum_before_normalise)
-    # print(trans_output_before_normalise)
+
+            if len(unk_count_per_tag[tag]) != len(unique_tag_list) + 1:
+                if tag not in trans_sum_before_normalise:
+                    trans_sum_before_normalise[tag] = trans_prob * num_unk
+                else:
+                    trans_sum_before_normalise[tag] += trans_prob * num_unk
+
+        tags_seen += tag
+        # print(trans_output_before_normalise)
+        # print(trans_output_before_normalise[('Y', 'D')])
+
     with open(trans_output_file, 'w', encoding="utf8") as trans_output_file:
         for tup, prob in trans_output_before_normalise.items():
             start_state = tup[0]
@@ -423,15 +440,13 @@ def transition_probability(file):
             final_prob = prob / trans_sum_before_normalise[start_state]
             text += "{} \t {} \t {} \n ".format(start_state,
                                                 next_state, final_prob)
-
         trans_output_file.write(text)
-
-        # print(transition_probability)
-        # trans_output_file.write(text)
 
 
 ###############  OUTPUT_PROBABILITY ###################
 output_probabilities = calc_output_prob("twitter_train.txt")
+# print(output_probabilities)
+
 with open('output_probs.txt', 'w', encoding="utf8") as f:
     for token, tags_prob in output_probabilities.items():
         for tag, prob in tags_prob.items():
@@ -503,10 +518,10 @@ def viterbi(observations, states, start_p, trans_p, emit_p, end_p):
             V[t][st] = {"prob": max_prob, "prev": prev_st_selected}
 
     # # to account for stop states:
-    # V.append({})
-    # for st in states:
-    #     max_tr_prob = V[-2][st]["prob"] * end_p[st]
-    #     V[-1][st] = {"prob": max_tr_prob, "prev": st}
+    V.append({})
+    for st in states:
+        max_tr_prob = V[-2][st]["prob"] * end_p[st]
+        V[-1][st] = {"prob": max_tr_prob, "prev": st}
     # print(V[1]["@"])
     opt = []
     max_prob = 0.0
@@ -521,6 +536,7 @@ def viterbi(observations, states, start_p, trans_p, emit_p, end_p):
     for t in range(len(V) - 2, -1, -1):
         opt.insert(0, V[t + 1][previous]["prev"])
         previous = V[t + 1][previous]["prev"]
+    opt.pop()
 
     return opt
 
@@ -574,15 +590,6 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
                     else:
                         trans_p[yt_1] = {}
                         trans_p[yt_1][yt] = probability
-    # print(trans_p["@"])
-    summing = 0
-    # print(len(unique_tag_list))
-    for tag in unique_tag_list:
-        for i in trans_p[tag].values():
-            summing += i
-        # print(tag)
-        # print(summing)
-        summing = 0
 
     # account for missing stop states:
     for tag in stop_state_list:
@@ -606,7 +613,7 @@ def viterbi_predict(in_tags_filename, in_trans_probs_filename, in_output_probs_f
                     output_p[tag] = {}
                     output_p[tag][token] = probability
 
-    print(output_p["@"]["unseen_token_null"])
+    # print(output_p["@"]["unseen_token_null"])
 
     # print(output_p["@"])
 
@@ -711,8 +718,9 @@ def run():
     viterbi_predictions_filename2 = f'{ddir}/viterbi_predictions2.txt'
     viterbi_predict2(in_tags_filename, trans_probs_filename2, output_probs_filename2, in_test_filename,
                      viterbi_predictions_filename2)
-    correct, total, acc = evaluate(viterbi_predictions_filename2, in_ans_filename)
-    print(f'Viterbi2 prediction accuracy:  {correct}/{total} = {acc}') 
+    correct, total, acc = evaluate(
+        viterbi_predictions_filename2, in_ans_filename)
+    print(f'Viterbi2 prediction accuracy:  {correct}/{total} = {acc}')
     '''
 
 
